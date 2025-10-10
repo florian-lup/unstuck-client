@@ -9,6 +9,8 @@
  * - Native browser support for audio streaming
  */
 
+import { apiClient } from './api-client'
+
 export type ConnectionState =
   | 'disconnected'
   | 'connecting'
@@ -18,6 +20,7 @@ export type ConnectionState =
 export interface RealtimeConfig {
   model: string
   ephemeralKey: string
+  accessToken: string
   onConnectionStateChange?: (state: ConnectionState) => void
   onTranscriptUpdate?: (transcript: string, isFinal: boolean) => void
   onAudioResponse?: (audioData: ArrayBuffer) => void
@@ -425,24 +428,33 @@ export class OpenAIRealtimeWebRTCManager {
         transcript?: string
         delta?: string
         error?: { message?: string; type?: string }
+        call_id?: string
+        name?: string
+        arguments?: string
       }
 
       // Handle different message types
       switch (message.type) {
         case 'session.created':
+          console.log('[OpenAI Session] Session created:', message)
+          break
         case 'session.updated':
+          console.log('[OpenAI Session] Session updated:', message)
           break
 
         case 'input_audio_buffer.speech_started':
           // User started speaking
+          console.log('[OpenAI VAD] User started speaking')
           break
 
         case 'input_audio_buffer.speech_stopped':
           // User stopped speaking
+          console.log('[OpenAI VAD] User stopped speaking')
           break
 
         case 'conversation.item.input_audio_transcription.completed':
           // User's speech was transcribed
+          console.log('[OpenAI Transcription] User speech completed:', message.transcript)
           if (message.transcript) {
             this.config.onTranscriptUpdate?.(message.transcript, true)
           }
@@ -481,10 +493,23 @@ export class OpenAIRealtimeWebRTCManager {
           }
           break
 
+        case 'response.function_call_arguments.done':
+          // Function call request from OpenAI
+          if (message.call_id && message.name && message.arguments) {
+            void this.handleFunctionCall(
+              message.call_id,
+              message.name,
+              message.arguments
+            )
+          }
+          break
+
         case 'response.done':
+          console.log('[OpenAI Response] Response completed:', message)
           break
 
         case 'response.cancelled':
+          console.log('[OpenAI Response] Response cancelled')
           break
 
         case 'error': {
@@ -500,6 +525,96 @@ export class OpenAIRealtimeWebRTCManager {
     } catch {
       // Ignore parsing errors
     }
+  }
+
+  /**
+   * Handle function call from OpenAI
+   */
+  private async handleFunctionCall(
+    callId: string,
+    functionName: string,
+    argumentsStr: string
+  ): Promise<void> {
+    try {
+      console.log(`[Function Call] ${functionName} with call_id: ${callId}`)
+
+      // Parse function arguments
+      const functionArgs = JSON.parse(argumentsStr) as Record<string, unknown>
+
+      // Call the backend tool endpoint
+      const response = await apiClient.voiceToolCall(
+        {
+          tool_name: functionName,
+          arguments: functionArgs,
+        },
+        this.config.accessToken
+      )
+
+      console.log(`[Function Call] Backend response:`, response)
+
+      // Determine the output to send back to OpenAI
+      const output = response.error
+        ? JSON.stringify({ error: response.error })
+        : JSON.stringify(response.result)
+
+      // Send the function result back to OpenAI
+      this.sendFunctionResult(callId, output)
+
+      // Request OpenAI to continue with the response
+      this.requestResponse()
+    } catch (error) {
+      console.error('[Function Call] Error:', error)
+
+      // Send error back to OpenAI
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      this.sendFunctionResult(
+        callId,
+        JSON.stringify({ error: errorMessage })
+      )
+
+      // Still request OpenAI to continue
+      this.requestResponse()
+    }
+  }
+
+  /**
+   * Send function result back to OpenAI
+   */
+  private sendFunctionResult(callId: string, output: string): void {
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      console.error('[Function Call] Data channel not open')
+      return
+    }
+
+    const message = {
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: output,
+      },
+    }
+
+    this.dataChannel.send(JSON.stringify(message))
+    console.log(`[Function Call] Sent result for call_id: ${callId}`)
+  }
+
+  /**
+   * Request OpenAI to create a response
+   */
+  private requestResponse(): void {
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      console.error('[Function Call] Data channel not open')
+      return
+    }
+
+    this.dataChannel.send(
+      JSON.stringify({
+        type: 'response.create',
+      })
+    )
+    console.log('[Function Call] Requested response from OpenAI')
   }
 
   /**

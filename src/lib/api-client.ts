@@ -119,6 +119,16 @@ export interface VoiceSessionError {
   request_id: string
 }
 
+export interface VoiceToolCallRequest {
+  tool_name: string
+  arguments: Record<string, unknown>
+}
+
+export interface VoiceToolCallResponse {
+  result: Record<string, unknown>
+  error: string | null
+}
+
 export class ApiClient {
   private readonly baseUrl =
     'https://unstuck-backend-production-d9c1.up.railway.app/api/v1'
@@ -129,6 +139,7 @@ export class ApiClient {
     subscriptionStatus: '/subscription/status',
     subscriptionCancel: '/subscription/cancel',
     voiceSession: '/voice/session',
+    voiceToolCall: '/voice/tool-call',
   } as const
 
   // Timeout configurations (in milliseconds)
@@ -782,6 +793,79 @@ export class ApiClient {
         !data.model
       ) {
         throw new Error('Invalid voice session response from server')
+      }
+
+      return data
+    } catch (networkError) {
+      if (
+        networkError instanceof TypeError &&
+        networkError.message.includes('fetch')
+      ) {
+        throw new Error(
+          'Connection failed. Please check your internet connection and try again.'
+        )
+      }
+      throw networkError
+    }
+  }
+
+  /**
+   * Execute a voice tool call
+   * Used for function calling in voice chat
+   */
+  async voiceToolCall(
+    request: VoiceToolCallRequest,
+    accessToken: string
+  ): Promise<VoiceToolCallResponse> {
+    const url = `${this.baseUrl}${this.endpoints.voiceToolCall}`
+
+    try {
+      const response = await this.fetchWithTimeout(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(request),
+        },
+        this.timeouts.quickRequests
+      )
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to execute tool call'
+        let errorType = 'tool_call_error'
+
+        try {
+          const errorData = (await response.json()) as ApiErrorResponse
+          errorMessage = errorData.message || errorMessage
+          errorType = errorData.error || errorType
+        } catch {
+          errorMessage = response.statusText || `HTTP ${response.status}`
+        }
+
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please sign in again.')
+        } else if (response.status === 403) {
+          throw new Error(errorMessage || 'Access denied.')
+        } else if (response.status === 429) {
+          throw new Error(
+            errorMessage ||
+              'Rate limit exceeded. Please wait a moment and try again.'
+          )
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.')
+        } else {
+          throw new Error(`${errorType}: ${errorMessage}`)
+        }
+      }
+
+      const data = (await response.json()) as VoiceToolCallResponse
+
+      // Validate the response structure
+      if (typeof data.result !== 'object' || data.result === null) {
+        throw new Error('Invalid tool call response from server')
       }
 
       return data

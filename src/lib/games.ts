@@ -21,7 +21,7 @@ const DEFAULT_GAMES: Game[] = [
     id: 'wow',
     gameName: 'world of warcraft',
     displayName: 'World of Warcraft',
-    version: '11.xx',
+    version: '11.2',
     category: 'mmorpg',
     isActive: true,
   },
