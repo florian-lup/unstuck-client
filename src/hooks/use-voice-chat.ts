@@ -148,9 +148,16 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       }
 
       // Get ephemeral token from backend
+      // Concatenate version to game name if version exists
+      const gameWithVersion = selectedGame
+        ? selectedGame.version
+          ? `${selectedGame.gameName} ${selectedGame.version}`
+          : selectedGame.gameName
+        : null
+
       const session = await voiceSessionService.createVoiceSession(
         {
-          game: selectedGame?.gameName ?? null,
+          game: gameWithVersion,
         },
         accessToken
       )
