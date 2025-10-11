@@ -439,22 +439,18 @@ export class OpenAIRealtimeWebRTCManager {
           console.log('[OpenAI Session] Session created:', message)
           break
         case 'session.updated':
-          console.log('[OpenAI Session] Session updated:', message)
           break
 
         case 'input_audio_buffer.speech_started':
           // User started speaking
-          console.log('[OpenAI VAD] User started speaking')
           break
 
         case 'input_audio_buffer.speech_stopped':
           // User stopped speaking
-          console.log('[OpenAI VAD] User stopped speaking')
           break
 
         case 'conversation.item.input_audio_transcription.completed':
           // User's speech was transcribed
-          console.log('[OpenAI Transcription] User speech completed:', message.transcript)
           if (message.transcript) {
             this.config.onTranscriptUpdate?.(message.transcript, true)
           }
@@ -505,11 +501,9 @@ export class OpenAIRealtimeWebRTCManager {
           break
 
         case 'response.done':
-          console.log('[OpenAI Response] Response completed:', message)
           break
 
         case 'response.cancelled':
-          console.log('[OpenAI Response] Response cancelled')
           break
 
         case 'error': {
@@ -563,8 +557,6 @@ export class OpenAIRealtimeWebRTCManager {
       // Request OpenAI to continue with the response
       this.requestResponse()
     } catch (error) {
-      console.error('[Function Call] Error:', error)
-
       // Send error back to OpenAI
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred'
@@ -583,7 +575,6 @@ export class OpenAIRealtimeWebRTCManager {
    */
   private sendFunctionResult(callId: string, output: string): void {
     if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      console.error('[Function Call] Data channel not open')
       return
     }
 
@@ -605,7 +596,6 @@ export class OpenAIRealtimeWebRTCManager {
    */
   private requestResponse(): void {
     if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      console.error('[Function Call] Data channel not open')
       return
     }
 

@@ -162,8 +162,6 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
         accessToken
       )
 
-      console.warn('Voice session response:', session)
-
       // Create WebRTC manager
       realtimeManagerRef.current = new OpenAIRealtimeWebRTCManager({
         model: session.model,
