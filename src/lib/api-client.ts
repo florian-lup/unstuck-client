@@ -124,8 +124,19 @@ export interface VoiceToolCallRequest {
   arguments: Record<string, unknown>
 }
 
+/**
+ * Sonar Search Result (from sonar_search tool)
+ * Returns a complete answer with citations
+ */
+export interface SonarSearchResult {
+  query: string
+  answer: string
+  citations: string[]
+}
+
 export interface VoiceToolCallResponse {
-  result: Record<string, unknown>
+  call_id?: string
+  result: SonarSearchResult | Record<string, unknown>
   error: string | null
 }
 
