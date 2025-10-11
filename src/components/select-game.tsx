@@ -158,7 +158,7 @@ export function SelectGame({
                 </div>
                 <Input
                   type="text"
-                  placeholder="Game Name"
+                  placeholder="Game Name (required)"
                   value={newGameName}
                   onChange={(e) => { setNewGameName(e.target.value); }}
                   onKeyDown={(e) => {
@@ -170,7 +170,7 @@ export function SelectGame({
                 />
                 <Input
                   type="text"
-                  placeholder="Version (optional)"
+                  placeholder="Version (recommended)"
                   value={newGameVersion}
                   onChange={(e) => { setNewGameVersion(e.target.value); }}
                   onKeyDown={(e) => {

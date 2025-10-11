@@ -165,9 +165,6 @@ export function ConversationHistory({
           <h3 className="text-sm font-medium text-overlay-text-primary">
             Conversation History
           </h3>
-          <div className="text-xs text-overlay-text-secondary">
-            {total > 0 ? `${total} conversation${total === 1 ? '' : 's'}` : ''}
-          </div>
         </div>
 
         {/* Content */}
