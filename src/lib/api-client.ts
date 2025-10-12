@@ -122,6 +122,7 @@ export interface VoiceSessionError {
 export interface VoiceToolCallRequest {
   tool_name: string
   arguments: Record<string, unknown>
+  session_id: string  // Required for security validation
 }
 
 /**
@@ -832,6 +833,7 @@ export class ApiClient {
     console.log(`[API Client] Voice tool call initiated:`, {
       tool_name: request.tool_name,
       arguments: request.arguments,
+      session_id: request.session_id,
       url
     })
 

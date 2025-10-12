@@ -20,6 +20,7 @@ export type ConnectionState =
 export interface RealtimeConfig {
   model: string
   ephemeralKey: string
+  ephemeralKeyId: string  // Session ID for tool call validation
   accessToken: string
   onConnectionStateChange?: (state: ConnectionState) => void
   onTranscriptUpdate?: (transcript: string, isFinal: boolean) => void
@@ -568,16 +569,18 @@ export class OpenAIRealtimeWebRTCManager {
         throw new Error(`Invalid function arguments JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`)
       }
 
-      // Call the backend tool endpoint
+      // Call the backend tool endpoint with session ID for security validation
       console.log(`[Function Call] Calling backend API with:`, {
         tool_name: functionName,
         arguments: functionArgs,
+        session_id: this.config.ephemeralKeyId,
       })
       
       const response = await apiClient.voiceToolCall(
         {
           tool_name: functionName,
           arguments: functionArgs,
+          session_id: this.config.ephemeralKeyId,
         },
         this.config.accessToken
       )

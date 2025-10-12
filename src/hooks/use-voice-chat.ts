@@ -166,6 +166,7 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       realtimeManagerRef.current = new OpenAIRealtimeWebRTCManager({
         model: session.model,
         ephemeralKey: session.client_secret,
+        ephemeralKeyId: session.ephemeral_key_id,  // Store session ID for tool call validation
         accessToken: accessToken,
         onConnectionStateChange: updateConnectionState,
         onTranscriptUpdate: updateTranscript,
