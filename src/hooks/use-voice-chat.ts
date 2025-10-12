@@ -74,16 +74,9 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
     isPlayingRef.current = true
 
     // Initialize audio context if needed
-    if (!audioContextRef.current) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      const AudioContextCtor =
-        window.AudioContext ??
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext
-      audioContextRef.current = new AudioContextCtor({
-        sampleRate: 24000,
-      })
-    }
+    audioContextRef.current ??= new window.AudioContext({
+      sampleRate: 24000,
+    })
 
     try {
       const audioData = audioQueueRef.current.shift()
