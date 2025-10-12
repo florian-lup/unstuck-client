@@ -126,17 +126,20 @@ export interface VoiceToolCallRequest {
 }
 
 /**
- * Sonar Search Result (from sonar_search tool)
- * Returns a complete answer with inline citation markers
+ * Web Search Result (from web_search tool)
+ * Returns search results with title and content
  */
-export interface SonarSearchResult {
+export interface WebSearchResult {
   query: string
-  answer: string
+  results: {
+    title: string
+    content: string
+  }[]
 }
 
 export interface VoiceToolCallResponse {
   call_id?: string
-  result: SonarSearchResult | Record<string, unknown>
+  result: WebSearchResult | Record<string, unknown>
   error: string | null
 }
 
