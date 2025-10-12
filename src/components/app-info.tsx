@@ -90,10 +90,10 @@ export function AppInfo({ isOpen, onClose }: AppInfoProps) {
                 </h3>
               </div>
               <p className="text-xs text-overlay-text-secondary leading-relaxed ml-2">
-                Unstuck automatically checks for updates in the background. When a
-                new version is available, a pulsing download button will appear in
-                the navigation bar. Click it to restart and install the latest
-                features and improvements.
+                Unstuck automatically checks for updates in the background. When
+                a new version is available, a pulsing download button will
+                appear in the navigation bar. Click it to restart and install
+                the latest features and improvements.
               </p>
             </div>
 

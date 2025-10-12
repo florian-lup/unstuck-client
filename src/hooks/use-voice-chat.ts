@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { secureAuth } from '../lib/auth-client'
 import type { Game } from '../lib/games'
-import { OpenAIRealtimeWebRTCManager, type ConnectionState } from '../lib/openai-realtime-webrtc-manager'
+import {
+  OpenAIRealtimeWebRTCManager,
+  type ConnectionState,
+} from '../lib/openai-realtime-webrtc-manager'
 import { voiceSessionService } from '../lib/voice-session-service'
 
 export interface VoiceChatState {
@@ -36,15 +39,18 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
   /**
    * Update connection state
    */
-  const updateConnectionState = useCallback((connectionState: ConnectionState) => {
-    setState((prev) => ({
-      ...prev,
-      connectionState,
-      isConnected: connectionState === 'connected',
-      isConnecting: connectionState === 'connecting',
-      error: connectionState === 'error' ? prev.error : null,
-    }))
-  }, [])
+  const updateConnectionState = useCallback(
+    (connectionState: ConnectionState) => {
+      setState((prev) => ({
+        ...prev,
+        connectionState,
+        isConnected: connectionState === 'connected',
+        isConnecting: connectionState === 'connecting',
+        error: connectionState === 'error' ? prev.error : null,
+      }))
+    },
+    []
+  )
 
   /**
    * Update transcript
@@ -70,7 +76,10 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
     // Initialize audio context if needed
     if (!audioContextRef.current) {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      const AudioContextCtor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const AudioContextCtor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext
       audioContextRef.current = new AudioContextCtor({
         sampleRate: 24000,
       })
@@ -90,7 +99,7 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       const source = audioContextRef.current.createBufferSource()
       source.buffer = audioBuffer
       source.connect(audioContextRef.current.destination)
-      
+
       source.onended = () => {
         // Play next in queue
         void playAudioQueue()
@@ -105,15 +114,18 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
   /**
    * Handle audio response from OpenAI
    */
-  const handleAudioResponse = useCallback((audioData: ArrayBuffer) => {
-    // Add to queue
-    audioQueueRef.current.push(audioData)
-    
-    // Start playing if not already playing
-    if (!isPlayingRef.current) {
-      void playAudioQueue()
-    }
-  }, [playAudioQueue])
+  const handleAudioResponse = useCallback(
+    (audioData: ArrayBuffer) => {
+      // Add to queue
+      audioQueueRef.current.push(audioData)
+
+      // Start playing if not already playing
+      if (!isPlayingRef.current) {
+        void playAudioQueue()
+      }
+    },
+    [playAudioQueue]
+  )
 
   /**
    * Handle errors
@@ -166,7 +178,7 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       realtimeManagerRef.current = new OpenAIRealtimeWebRTCManager({
         model: session.model,
         ephemeralKey: session.client_secret,
-        ephemeralKeyId: session.ephemeral_key_id,  // Store session ID for tool call validation
+        ephemeralKeyId: session.ephemeral_key_id, // Store session ID for tool call validation
         accessToken: accessToken,
         onConnectionStateChange: updateConnectionState,
         onTranscriptUpdate: updateTranscript,
@@ -188,9 +200,7 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
         isConnecting: false,
         connectionState: 'error',
       }))
-      handleError(
-        error instanceof Error ? error : new Error(errorMessage)
-      )
+      handleError(error instanceof Error ? error : new Error(errorMessage))
     }
   }, [
     state.isConnected,
@@ -245,7 +255,11 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
           setState((prev) => ({ ...prev, isMuted: false }))
         })
         .catch((error: unknown) => {
-          handleError(error instanceof Error ? error : new Error('Failed to start audio capture'))
+          handleError(
+            error instanceof Error
+              ? error
+              : new Error('Failed to start audio capture')
+          )
         })
     } else {
       // Mute - stop audio capture
@@ -257,13 +271,16 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
   /**
    * Send text message
    */
-  const sendTextMessage = useCallback((text: string) => {
-    if (!realtimeManagerRef.current || !state.isConnected) {
-      throw new Error('Not connected to voice chat')
-    }
+  const sendTextMessage = useCallback(
+    (text: string) => {
+      if (!realtimeManagerRef.current || !state.isConnected) {
+        throw new Error('Not connected to voice chat')
+      }
 
-    realtimeManagerRef.current.sendTextMessage(text)
-  }, [state.isConnected])
+      realtimeManagerRef.current.sendTextMessage(text)
+    },
+    [state.isConnected]
+  )
 
   /**
    * Clear transcript
@@ -275,14 +292,14 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
   /**
    * Configure interruption detection
    */
-  const setInterruptionConfig = useCallback((config: {
-    enabled?: boolean
-    threshold?: number
-  }) => {
-    if (realtimeManagerRef.current) {
-      realtimeManagerRef.current.setInterruptionConfig(config)
-    }
-  }, [])
+  const setInterruptionConfig = useCallback(
+    (config: { enabled?: boolean; threshold?: number }) => {
+      if (realtimeManagerRef.current) {
+        realtimeManagerRef.current.setInterruptionConfig(config)
+      }
+    },
+    []
+  )
 
   /**
    * Cleanup on unmount
@@ -320,7 +337,7 @@ function convertPCM16ToAudioBuffer(
     try {
       // PCM16 is 16-bit signed integer
       const int16Array = new Int16Array(pcm16Buffer)
-      
+
       // Create AudioBuffer
       const audioBuffer = audioContext.createBuffer(
         1, // mono
@@ -340,8 +357,11 @@ function convertPCM16ToAudioBuffer(
 
       resolve(audioBuffer)
     } catch (error) {
-      reject(error instanceof Error ? error : new Error('Failed to convert PCM16 to AudioBuffer'))
+      reject(
+        error instanceof Error
+          ? error
+          : new Error('Failed to convert PCM16 to AudioBuffer')
+      )
     }
   })
 }
-

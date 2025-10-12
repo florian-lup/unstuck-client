@@ -31,7 +31,7 @@ export function ConversationHistory({
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [total, setTotal] = useState(0)
+  const [_total, setTotal] = useState(0)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [hasInitialized, setHasInitialized] = useState(false)
 

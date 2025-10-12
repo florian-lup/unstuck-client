@@ -43,4 +43,3 @@ export function useUpdater() {
     restartAndInstall,
   }
 }
-

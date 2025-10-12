@@ -24,7 +24,7 @@ export class AutoUpdaterManager {
     // Disable auto-download to control the flow manually
     // We'll trigger download immediately when update is available
     autoUpdater.autoDownload = false
-    
+
     // Install update immediately after download without asking
     autoUpdater.autoInstallOnAppQuit = true
 
@@ -121,9 +121,12 @@ export class AutoUpdaterManager {
     try {
       // Check for updates
       const result = await autoUpdater.checkForUpdates()
-      
+
       if (result) {
-        logger.info('Update check completed. Update info:', result.updateInfo.version)
+        logger.info(
+          'Update check completed. Update info:',
+          result.updateInfo.version
+        )
       }
     } catch (error) {
       logger.error('Failed to check for updates:', error)
@@ -166,9 +169,8 @@ export class AutoUpdaterManager {
   public cleanup(): void {
     // Remove IPC handlers
     ipcMain.removeHandler('updater:restart-and-install')
-    
+
     // Remove all event listeners
     autoUpdater.removeAllListeners()
   }
 }
-

@@ -1,4 +1,14 @@
-import { Mic, Type, Menu, Settings, Info, Grip, Download, Loader2, PhoneOff } from 'lucide-react'
+import {
+  Mic,
+  Type,
+  Menu,
+  Settings,
+  Info,
+  Grip,
+  Download,
+  Loader2,
+  PhoneOff,
+} from 'lucide-react'
 import React from 'react'
 import { Game } from '../lib/games'
 import { InteractiveArea } from './interactive-area'

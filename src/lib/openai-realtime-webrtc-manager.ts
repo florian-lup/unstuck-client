@@ -1,7 +1,7 @@
 /**
  * OpenAI Realtime WebRTC Manager
  * Manages WebRTC connection to OpenAI Realtime API for voice chat
- * 
+ *
  * WebRTC provides:
  * - Lower latency compared to WebSockets
  * - Built-in media handling and audio optimization
@@ -20,7 +20,7 @@ export type ConnectionState =
 export interface RealtimeConfig {
   model: string
   ephemeralKey: string
-  ephemeralKeyId: string  // Session ID for tool call validation
+  ephemeralKeyId: string // Session ID for tool call validation
   accessToken: string
   onConnectionStateChange?: (state: ConnectionState) => void
   onTranscriptUpdate?: (transcript: string, isFinal: boolean) => void
@@ -48,7 +48,10 @@ export class OpenAIRealtimeWebRTCManager {
    * Connect to OpenAI Realtime API via WebRTC
    */
   async connect(): Promise<void> {
-    if (this.connectionState === 'connected' || this.connectionState === 'connecting') {
+    if (
+      this.connectionState === 'connected' ||
+      this.connectionState === 'connecting'
+    ) {
       return
     }
 
@@ -57,7 +60,6 @@ export class OpenAIRealtimeWebRTCManager {
     this.setConnectionState('connecting')
 
     try {
-
       // Create RTCPeerConnection with STUN servers
       this.peerConnection = new RTCPeerConnection({
         iceServers: [
@@ -67,8 +69,10 @@ export class OpenAIRealtimeWebRTCManager {
       })
 
       // Set up peer connection event handlers
-      this.peerConnection.oniceconnectionstatechange = this.handleICEStateChange.bind(this)
-      this.peerConnection.onconnectionstatechange = this.handleConnectionStateChange.bind(this)
+      this.peerConnection.oniceconnectionstatechange =
+        this.handleICEStateChange.bind(this)
+      this.peerConnection.onconnectionstatechange =
+        this.handleConnectionStateChange.bind(this)
       this.peerConnection.ontrack = this.handleTrack.bind(this)
 
       // Create data channel for sending/receiving control messages and text
@@ -175,17 +179,26 @@ export class OpenAIRealtimeWebRTCManager {
 
       const checkState = () => {
         if (this.peerConnection?.iceGatheringState === 'complete') {
-          this.peerConnection.removeEventListener('icegatheringstatechange', checkState)
+          this.peerConnection.removeEventListener(
+            'icegatheringstatechange',
+            checkState
+          )
           resolve()
         }
       }
 
-      this.peerConnection.addEventListener('icegatheringstatechange', checkState)
+      this.peerConnection.addEventListener(
+        'icegatheringstatechange',
+        checkState
+      )
 
       // Timeout after 5 seconds
       setTimeout(() => {
         if (this.peerConnection) {
-          this.peerConnection.removeEventListener('icegatheringstatechange', checkState)
+          this.peerConnection.removeEventListener(
+            'icegatheringstatechange',
+            checkState
+          )
         }
         resolve()
       }, 5000)
@@ -196,12 +209,14 @@ export class OpenAIRealtimeWebRTCManager {
    * Exchange SDP with OpenAI API
    * Uses the GA endpoint: /v1/realtime/calls
    */
-  private async exchangeSDP(offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> {
+  private async exchangeSDP(
+    offer: RTCSessionDescriptionInit
+  ): Promise<RTCSessionDescriptionInit> {
     try {
       const response = await fetch('https://api.openai.com/v1/realtime/calls', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.config.ephemeralKey}`,
+          Authorization: `Bearer ${this.config.ephemeralKey}`,
           'Content-Type': 'application/sdp',
         },
         body: offer.sdp,
@@ -209,25 +224,29 @@ export class OpenAIRealtimeWebRTCManager {
 
       if (!response.ok) {
         let errorText = await response.text()
-        
+
         // Try to parse as JSON for better error message
         try {
-          const errorJson = JSON.parse(errorText) as { error?: { message?: string } }
+          const errorJson = JSON.parse(errorText) as {
+            error?: { message?: string }
+          }
           if (errorJson.error?.message) {
             errorText = errorJson.error.message
           }
         } catch {
           // Not JSON, use text as-is
         }
-        
+
         if (response.status === 400) {
           throw new Error(
             `WebRTC SDP exchange failed. Your backend may need to be updated to use the OpenAI GA API ` +
-            `(/v1/realtime/client_secrets endpoint) instead of the beta API. Error: ${errorText}`
+              `(/v1/realtime/client_secrets endpoint) instead of the beta API. Error: ${errorText}`
           )
         }
-        
-        throw new Error(`SDP exchange failed (${response.status}): ${errorText}`)
+
+        throw new Error(
+          `SDP exchange failed (${response.status}): ${errorText}`
+        )
       }
 
       const answerSDP = await response.text()
@@ -407,7 +426,6 @@ export class OpenAIRealtimeWebRTCManager {
    * Handle data channel open
    */
   private handleDataChannelOpen(): void {
-    console.log('[OpenAI Connection] Data channel opened - connection established')
     this.setConnectionState('connected')
     this.reconnectAttempts = 0
 
@@ -418,8 +436,6 @@ export class OpenAIRealtimeWebRTCManager {
     // - Turn detection (server VAD)
     // - Transcription settings
     // Client can send session.update later if runtime changes are needed
-    
-    console.log('[OpenAI Connection] Ready to receive function calls and handle voice interactions')
   }
 
   /**
@@ -437,15 +453,9 @@ export class OpenAIRealtimeWebRTCManager {
         arguments?: string
       }
 
-      // Log all function-call related messages for debugging
-      if (message.type.includes('function_call')) {
-        console.log('[Function Call Event]', message.type, JSON.stringify(message, null, 2))
-      }
-
       // Handle different message types
       switch (message.type) {
         case 'session.created':
-          console.log('[OpenAI Session] Session created:', message)
           break
         case 'session.updated':
           break
@@ -499,26 +509,13 @@ export class OpenAIRealtimeWebRTCManager {
           break
 
         case 'response.function_call_arguments.done':
-          console.log('[Function Call] Received function_call_arguments.done event')
           // Function call request from OpenAI
           if (message.call_id && message.name && message.arguments) {
-            console.log(`[Function Call] Valid function call detected:`, {
-              call_id: message.call_id,
-              name: message.name,
-              arguments: message.arguments
-            })
             void this.handleFunctionCall(
               message.call_id,
               message.name,
               message.arguments
             )
-          } else {
-            console.warn('[Function Call] Missing required fields:', {
-              has_call_id: !!message.call_id,
-              has_name: !!message.name,
-              has_arguments: !!message.arguments,
-              message
-            })
           }
           break
 
@@ -529,21 +526,17 @@ export class OpenAIRealtimeWebRTCManager {
           break
 
         case 'error': {
-          const errorMsg = message.error?.message ?? message.error?.type ?? 'Unknown error'
-          console.error('[OpenAI Error]', errorMsg, message)
+          const errorMsg =
+            message.error?.message ?? message.error?.type ?? 'Unknown error'
           this.config.onError?.(new Error(errorMsg))
           break
         }
 
         default:
-          // Log unhandled message types for debugging
-          if (!message.type.includes('audio') && !message.type.includes('transcript')) {
-            console.log('[OpenAI Event]', message.type)
-          }
           break
       }
-    } catch (error) {
-      console.error('[Message Parse Error]', error, 'Raw data:', event.data)
+    } catch {
+      // Error parsing message
     }
   }
 
@@ -555,27 +548,18 @@ export class OpenAIRealtimeWebRTCManager {
     functionName: string,
     argumentsStr: string
   ): Promise<void> {
-    console.log(`[Function Call] Starting execution - Function: ${functionName}, Call ID: ${callId}`)
-    console.log(`[Function Call] Raw arguments string:`, argumentsStr)
-    
     try {
       // Parse function arguments
       let functionArgs: Record<string, unknown>
       try {
         functionArgs = JSON.parse(argumentsStr) as Record<string, unknown>
-        console.log(`[Function Call] Parsed arguments:`, functionArgs)
       } catch (parseError) {
-        console.error(`[Function Call] Failed to parse arguments:`, parseError)
-        throw new Error(`Invalid function arguments JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`)
+        throw new Error(
+          `Invalid function arguments JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`
+        )
       }
 
       // Call the backend tool endpoint with session ID for security validation
-      console.log(`[Function Call] Calling backend API with:`, {
-        tool_name: functionName,
-        arguments: functionArgs,
-        session_id: this.config.ephemeralKeyId,
-      })
-      
       const response = await apiClient.voiceToolCall(
         {
           tool_name: functionName,
@@ -585,41 +569,22 @@ export class OpenAIRealtimeWebRTCManager {
         this.config.accessToken
       )
 
-      console.log(`[Function Call] Backend response received:`, response)
-
       // Determine the output to send back to OpenAI
       const output = response.error
         ? JSON.stringify({ error: response.error })
         : JSON.stringify(response.result)
-
-      console.log(`[Function Call] Output to send back to OpenAI:`, output)
 
       // Send the function result back to OpenAI
       this.sendFunctionResult(callId, output)
 
       // Request OpenAI to continue with the response
       this.requestResponse()
-      
-      console.log(`[Function Call] Successfully completed function call: ${functionName}`)
     } catch (error) {
-      console.error(`[Function Call] Error executing ${functionName}:`, error)
-      console.error(`[Function Call] Error details:`, {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        callId,
-        functionName,
-        argumentsStr
-      })
-      
       // Send error back to OpenAI
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred'
-      
-      console.log(`[Function Call] Sending error response to OpenAI:`, errorMessage)
-      this.sendFunctionResult(
-        callId,
-        JSON.stringify({ error: errorMessage })
-      )
+
+      this.sendFunctionResult(callId, JSON.stringify({ error: errorMessage }))
 
       // Let OpenAI naturally continue the conversation after receiving the error result
       // (removed requestResponse() to avoid "active response in progress" race condition)
@@ -631,7 +596,6 @@ export class OpenAIRealtimeWebRTCManager {
    */
   private sendFunctionResult(callId: string, output: string): void {
     if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      console.error(`[Function Call] Cannot send result - data channel not open. State: ${this.dataChannel?.readyState ?? 'null'}`)
       return
     }
 
@@ -644,9 +608,7 @@ export class OpenAIRealtimeWebRTCManager {
       },
     }
 
-    console.log(`[Function Call] Sending result to OpenAI:`, message)
     this.dataChannel.send(JSON.stringify(message))
-    console.log(`[Function Call] Successfully sent result for call_id: ${callId}`)
   }
 
   /**
@@ -654,17 +616,14 @@ export class OpenAIRealtimeWebRTCManager {
    */
   private requestResponse(): void {
     if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      console.error(`[Function Call] Cannot request response - data channel not open. State: ${this.dataChannel?.readyState ?? 'null'}`)
       return
     }
 
-    console.log('[Function Call] Requesting response from OpenAI')
     this.dataChannel.send(
       JSON.stringify({
         type: 'response.create',
       })
     )
-    console.log('[Function Call] Successfully sent response.create request')
   }
 
   /**
@@ -681,7 +640,10 @@ export class OpenAIRealtimeWebRTCManager {
     this.setConnectionState('disconnected')
 
     // Only attempt reconnect if disconnect was not intentional
-    if (!this.intentionalDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+    if (
+      !this.intentionalDisconnect &&
+      this.reconnectAttempts < this.maxReconnectAttempts
+    ) {
       this.reconnectAttempts++
       setTimeout(() => {
         void this.connect().catch(() => {
@@ -728,4 +690,3 @@ export class OpenAIRealtimeWebRTCManager {
     return bytes.buffer
   }
 }
-

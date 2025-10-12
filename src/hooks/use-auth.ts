@@ -24,13 +24,11 @@ export function useAuth() {
       })
 
     // Listen for auth changes via secure IPC
-    const { unsubscribe } = secureAuth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null)
-        setSession(session)
-        setLoading(false)
-      }
-    )
+    const { unsubscribe } = secureAuth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setSession(session)
+      setLoading(false)
+    })
 
     return () => {
       unsubscribe()

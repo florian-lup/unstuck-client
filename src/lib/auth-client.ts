@@ -97,7 +97,7 @@ export class SecureAuthClient {
 
     // Create new request
     this.pendingSessionRequest = this.fetchSession()
-    
+
     try {
       const result = await this.pendingSessionRequest
       return result

@@ -101,7 +101,9 @@ interface DropdownProps {
 }
 
 interface DropdownContentProps {
-  children: React.ReactNode | ((props: { close?: () => void }) => React.ReactNode)
+  children:
+    | React.ReactNode
+    | ((props: { close?: () => void }) => React.ReactNode)
   className?: string
   noScroll?: boolean
 }

@@ -139,16 +139,14 @@ export function validateAuth0Config(config: Auth0Config): void {
 
   // Validate scope format
   if (config.scope && !config.scope.includes('openid')) {
-    // eslint-disable-next-line no-console
-    console.warn(
+    throw new Error(
       'Auth0 scope should include "openid" for proper authentication'
     )
   }
 
   // Validate audience format (if provided)
   if (config.audience && !config.audience.startsWith('https://')) {
-    // eslint-disable-next-line no-console
-    console.warn('Auth0 audience should be a valid HTTPS URL')
+    throw new Error('Auth0 audience should be a valid HTTPS URL')
   }
 
   // Validate polling intervals

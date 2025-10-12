@@ -74,8 +74,6 @@ export class VoiceSessionService {
   ): Promise<VoiceSessionResponse> {
     const url = `${this.baseUrl}${this.endpoint}`
 
-    console.log('[Voice Session] Creating voice session with request:', request)
-
     try {
       const response = await this.fetchWithTimeout(
         url,
@@ -90,20 +88,14 @@ export class VoiceSessionService {
         this.timeout
       )
 
-      console.log('[Voice Session] Response status:', response.status)
-
       // Handle non-200 responses
       if (!response.ok) {
-        console.error('[Voice Session] Request failed with status:', response.status)
-        
         // Try to parse error response
         let errorData: VoiceSessionError | null = null
         try {
           errorData = (await response.json()) as VoiceSessionError
-          console.error('[Voice Session] Error response:', errorData)
         } catch {
           // If JSON parsing fails, use status text
-          console.error('[Voice Session] Failed to parse error response')
           throw new Error(`Request failed: ${response.statusText}`)
         }
 
@@ -135,19 +127,11 @@ export class VoiceSessionService {
           !data.websocket_url ||
           !data.model
         ) {
-          console.error('[Voice Session] Invalid response format:', data)
           throw new Error('Invalid response format from server')
         }
 
-        console.log('[Voice Session] Successfully created session:', {
-          ephemeral_key_id: data.ephemeral_key_id,
-          model: data.model,
-          expires_at: data.expires_at
-        })
-
         return data
       } catch (error) {
-        console.error('[Voice Session] Error parsing response:', error)
         if (error instanceof Error) {
           throw error
         }
@@ -172,4 +156,3 @@ export class VoiceSessionService {
 
 // Export singleton instance
 export const voiceSessionService = new VoiceSessionService()
-

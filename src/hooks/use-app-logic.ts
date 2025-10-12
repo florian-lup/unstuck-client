@@ -416,7 +416,7 @@ export function useAppLogic() {
       if (showInfoPanel) {
         setShowInfoPanel(false)
       }
-      
+
       // Start voice chat connection
       try {
         await voiceChat.startVoiceChat()
@@ -632,7 +632,6 @@ export function useAppLogic() {
     // Optionally clear messages when closing chat
     // setMessages([])
   }
-
 
   const handleConversationSelect = async (conversation: Conversation) => {
     try {

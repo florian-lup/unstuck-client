@@ -115,7 +115,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ) as Promise<unknown>
   },
   updateChatShortcut: async (shortcut: string): Promise<unknown> => {
-    return ipcRenderer.invoke('update-chat-shortcut', shortcut) as Promise<unknown>
+    return ipcRenderer.invoke(
+      'update-chat-shortcut',
+      shortcut
+    ) as Promise<unknown>
   },
   updateHistoryShortcut: async (shortcut: string): Promise<unknown> => {
     return ipcRenderer.invoke(
