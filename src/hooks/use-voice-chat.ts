@@ -35,6 +35,7 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioQueueRef = useRef<ArrayBuffer[]>([])
   const isPlayingRef = useRef(false)
+  const sessionIdRef = useRef<string | null>(null)
 
   /**
    * Update connection state
@@ -167,6 +168,9 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
         accessToken
       )
 
+      // Store session ID for ending session later
+      sessionIdRef.current = session.ephemeral_key_id
+
       // Create WebRTC manager
       realtimeManagerRef.current = new OpenAIRealtimeWebRTCManager({
         model: session.model,
@@ -208,7 +212,24 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
   /**
    * Stop voice chat
    */
-  const stopVoiceChat = useCallback(() => {
+  const stopVoiceChat = useCallback(async () => {
+    // End session on backend if we have a session ID
+    if (sessionIdRef.current) {
+      try {
+        const accessToken = await secureAuth.getValidAccessToken()
+        if (accessToken) {
+          await voiceSessionService.endVoiceSession(
+            { session_id: sessionIdRef.current },
+            accessToken
+          )
+        }
+      } catch (error) {
+        // Log error but don't prevent disconnection
+        console.error('Failed to end voice session:', error)
+      }
+      sessionIdRef.current = null
+    }
+
     if (realtimeManagerRef.current) {
       realtimeManagerRef.current.disconnect()
       realtimeManagerRef.current = null
@@ -299,6 +320,27 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
    */
   useEffect(() => {
     return () => {
+      // End session on backend if we have a session ID
+      if (sessionIdRef.current) {
+        const sessionId = sessionIdRef.current
+        const endSession = async () => {
+          try {
+            const accessToken = await secureAuth.getValidAccessToken()
+            if (accessToken) {
+              await voiceSessionService.endVoiceSession(
+                { session_id: sessionId },
+                accessToken
+              )
+            }
+          } catch (error) {
+            // Log error but don't prevent cleanup
+            console.error('Failed to end voice session on unmount:', error)
+          }
+        }
+        void endSession()
+        sessionIdRef.current = null
+      }
+
       if (realtimeManagerRef.current) {
         realtimeManagerRef.current.disconnect()
       }

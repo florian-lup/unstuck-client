@@ -401,7 +401,7 @@ export function useAppLogic() {
     // Toggle voice chat based on connection state
     if (voiceChat.isConnected || voiceChat.isConnecting) {
       // If already connected or connecting, stop it
-      voiceChat.stopVoiceChat()
+      await voiceChat.stopVoiceChat()
     } else {
       // Close other panels
       if (isGamingChatVisible) {
@@ -488,7 +488,7 @@ export function useAppLogic() {
     if (!isGamingChatVisible) {
       // Stop voice chat if active
       if (voiceChat.isConnected || voiceChat.isConnecting) {
-        voiceChat.stopVoiceChat()
+        void voiceChat.stopVoiceChat()
       }
       if (showSettingsMenu) {
         setShowSettingsMenu(false)
@@ -511,7 +511,7 @@ export function useAppLogic() {
       }
       // Stop voice chat if active
       if (voiceChat.isConnected || voiceChat.isConnecting) {
-        voiceChat.stopVoiceChat()
+        void voiceChat.stopVoiceChat()
       }
       if (showSettingsMenu) {
         setShowSettingsMenu(false)
@@ -531,7 +531,7 @@ export function useAppLogic() {
       }
       // Stop voice chat if active
       if (voiceChat.isConnected || voiceChat.isConnecting) {
-        voiceChat.stopVoiceChat()
+        void voiceChat.stopVoiceChat()
       }
       if (showHistoryPanel) {
         setShowHistoryPanel(false)
@@ -551,7 +551,7 @@ export function useAppLogic() {
       }
       // Stop voice chat if active
       if (voiceChat.isConnected || voiceChat.isConnecting) {
-        voiceChat.stopVoiceChat()
+        void voiceChat.stopVoiceChat()
       }
       if (showSettingsMenu) {
         setShowSettingsMenu(false)
@@ -729,7 +729,7 @@ export function useAppLogic() {
       }
       // Stop voice chat if active
       if (voiceChat.isConnected || voiceChat.isConnecting) {
-        voiceChat.stopVoiceChat()
+        void voiceChat.stopVoiceChat()
       }
       if (showSettingsMenu) {
         setShowSettingsMenu(false)

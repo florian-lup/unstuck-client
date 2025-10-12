@@ -28,10 +28,20 @@ export interface VoiceSessionError {
   request_id: string
 }
 
+export interface EndSessionRequest {
+  session_id: string
+}
+
+export interface EndSessionResponse {
+  message: string
+  session_id: string
+}
+
 export class VoiceSessionService {
   private readonly baseUrl =
     'https://unstuck-backend-production-d9c1.up.railway.app/api/v1'
   private readonly endpoint = '/voice/session'
+  private readonly endSessionEndpoint = '/voice/session/end'
   private readonly timeout = 15000 // 15 seconds
 
   /**
@@ -127,6 +137,91 @@ export class VoiceSessionService {
           !data.websocket_url ||
           !data.model
         ) {
+          throw new Error('Invalid response format from server')
+        }
+
+        return data
+      } catch (error) {
+        if (error instanceof Error) {
+          throw error
+        }
+        throw new Error('Failed to parse server response')
+      }
+    } catch (networkError) {
+      // Check if it's a fetch error (network issues)
+      if (
+        networkError instanceof TypeError &&
+        networkError.message.includes('fetch')
+      ) {
+        throw new Error(
+          'Connection failed. Please check your internet connection and try again.'
+        )
+      }
+
+      // Re-throw other errors
+      throw networkError
+    }
+  }
+
+  /**
+   * End a voice session
+   */
+  async endVoiceSession(
+    request: EndSessionRequest,
+    accessToken: string
+  ): Promise<EndSessionResponse> {
+    const url = `${this.baseUrl}${this.endSessionEndpoint}`
+
+    try {
+      const response = await this.fetchWithTimeout(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(request),
+        },
+        this.timeout
+      )
+
+      // Handle non-200 responses
+      if (!response.ok) {
+        // Try to parse error response
+        let errorData: VoiceSessionError | null = null
+        try {
+          errorData = (await response.json()) as VoiceSessionError
+        } catch {
+          // If JSON parsing fails, use status text
+          throw new Error(`Request failed: ${response.statusText}`)
+        }
+
+        // Handle specific error cases
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please sign in again.')
+        } else if (response.status === 403) {
+          throw new Error(errorData.message || 'Access denied.')
+        } else if (response.status === 404) {
+          throw new Error(errorData.message || 'Session not found.')
+        } else if (response.status === 429) {
+          throw new Error(
+            errorData.message ||
+              'Rate limit exceeded. Please wait a moment and try again.'
+          )
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.')
+        } else {
+          throw new Error(errorData.message || 'Failed to end voice session')
+        }
+      }
+
+      // Parse and validate the successful response
+      try {
+        const data = (await response.json()) as EndSessionResponse
+
+        // Basic validation of required fields
+        if (!data.session_id) {
           throw new Error('Invalid response format from server')
         }
 
