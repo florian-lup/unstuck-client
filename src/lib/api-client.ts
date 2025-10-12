@@ -127,13 +127,14 @@ export interface VoiceToolCallRequest {
 
 /**
  * Web Search Result (from web_search tool)
- * Returns search results with title and content
+ * Returns search results with title, content, and raw_content
  */
 export interface WebSearchResult {
   query: string
   results: {
     title: string
     content: string
+    raw_content: string
   }[]
 }
 
