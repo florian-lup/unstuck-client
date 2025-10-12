@@ -126,12 +126,11 @@ export interface VoiceToolCallRequest {
 
 /**
  * Sonar Search Result (from sonar_search tool)
- * Returns a complete answer with citations
+ * Returns a complete answer with inline citation markers
  */
 export interface SonarSearchResult {
   query: string
   answer: string
-  citations: string[]
 }
 
 export interface VoiceToolCallResponse {
@@ -158,7 +157,7 @@ export class ApiClient {
     aiRequests: 120000, // 2 minutes for AI-powered requests (chat)
     stripeRequests: 300000, // 5 minutes for Stripe operations (checkout, subscription)
     standardRequests: 30000, // 30 seconds for standard API requests
-    quickRequests: 15000, // 15 seconds for quick operations
+    quickRequests: 60000, // 1 minute for quick operations (increased for voice tool calls)
   } as const
 
   /**
@@ -830,6 +829,12 @@ export class ApiClient {
   ): Promise<VoiceToolCallResponse> {
     const url = `${this.baseUrl}${this.endpoints.voiceToolCall}`
 
+    console.log(`[API Client] Voice tool call initiated:`, {
+      tool_name: request.tool_name,
+      arguments: request.arguments,
+      url
+    })
+
     try {
       const response = await this.fetchWithTimeout(
         url,
@@ -844,6 +849,8 @@ export class ApiClient {
         this.timeouts.quickRequests
       )
 
+      console.log(`[API Client] Voice tool call response status:`, response.status)
+
       if (!response.ok) {
         let errorMessage = 'Failed to execute tool call'
         let errorType = 'tool_call_error'
@@ -852,8 +859,10 @@ export class ApiClient {
           const errorData = (await response.json()) as ApiErrorResponse
           errorMessage = errorData.message || errorMessage
           errorType = errorData.error || errorType
+          console.error(`[API Client] Voice tool call error response:`, errorData)
         } catch {
           errorMessage = response.statusText || `HTTP ${response.status}`
+          console.error(`[API Client] Voice tool call error (no JSON):`, errorMessage)
         }
 
         if (response.status === 401) {
@@ -873,14 +882,23 @@ export class ApiClient {
       }
 
       const data = (await response.json()) as VoiceToolCallResponse
+      
+      console.log(`[API Client] Voice tool call success:`, {
+        has_result: !!data.result,
+        has_error: !!data.error,
+        result_type: typeof data.result
+      })
 
       // Validate the response structure
       if (typeof data.result !== 'object' || data.result === null) {
+        console.error(`[API Client] Invalid tool call response structure:`, data)
         throw new Error('Invalid tool call response from server')
       }
 
       return data
     } catch (networkError) {
+      console.error(`[API Client] Voice tool call network error:`, networkError)
+      
       if (
         networkError instanceof TypeError &&
         networkError.message.includes('fetch')

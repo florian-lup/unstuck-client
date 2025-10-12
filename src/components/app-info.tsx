@@ -130,7 +130,7 @@ export function AppInfo({ isOpen, onClose }: AppInfoProps) {
               <div className="flex items-center gap-2 mb-2">
                 <Mic className="w-4 h-4 text-overlay-accent-primary" />
                 <h3 className="text-sm font-medium text-overlay-text-primary">
-                  Voice Chat
+                  Voice Chat (Beta)
                 </h3>
               </div>
               <p className="text-xs text-overlay-text-secondary leading-relaxed ml-2">
