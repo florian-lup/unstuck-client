@@ -63,6 +63,10 @@ export interface ConversationsResponse {
     updated_at: string
   }[]
   total: number
+  remaining_requests: number
+  max_requests: number
+  limit_type: string
+  reset_date: string | null
 }
 
 export interface ConversationHistoryResponse {
@@ -73,6 +77,12 @@ export interface ConversationHistoryResponse {
   }[]
   created_at: number
   updated_at: number
+  request_limit_info: {
+    remaining_requests: number
+    max_requests: number
+    limit_type: 'lifetime' | 'monthly'
+    reset_date: string | null
+  }
 }
 
 export interface CreateCheckoutSessionResponse {

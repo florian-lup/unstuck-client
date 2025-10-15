@@ -650,6 +650,12 @@ export function useAppLogic() {
             content: msg.content,
             role: msg.role,
             timestamp: new Date(cachedHistory.updated_at * 1000), // Convert unix timestamp to Date
+            // Add remaining requests to the last assistant message (if available)
+            ...(msg.role === 'assistant' &&
+              index === cachedHistory.messages.length - 1 && {
+                remainingRequests:
+                  cachedHistory.request_limit_info.remaining_requests,
+              }),
           })
         )
 
@@ -691,6 +697,12 @@ export function useAppLogic() {
           content: msg.content,
           role: msg.role,
           timestamp: new Date(historyResponse.updated_at * 1000), // Convert unix timestamp to Date
+          // Add remaining requests to the last assistant message
+          ...(msg.role === 'assistant' &&
+            index === historyResponse.messages.length - 1 && {
+              remainingRequests:
+                historyResponse.request_limit_info.remaining_requests,
+            }),
         })
       )
 
