@@ -1,34 +1,31 @@
 /**
- * API Client for Gaming Search Functionality
+ * API Client for Text Chat Functionality
  * Handles communication with the Unstuck backend API
  */
 
-export interface GamingChatRequest {
+export interface TextChatRequest {
   query: string
   game: string
   version?: string
   conversation_id?: string
 }
 
-export interface GamingChatResponse {
+export interface TextChatResponse {
   id: string
   conversation_id: string
   model: string
   created: number
   content: string
-  search_results: {
-    title: string
-    url: string
-    date: string
-  }[]
   usage: {
     prompt_tokens: number
     completion_tokens: number
     total_tokens: number
   }
-  finish_reason: string
   request_limit_info: {
     remaining_requests: number
+    max_requests: number
+    limit_type: 'lifetime' | 'monthly'
+    reset_date: string | null
   }
 }
 
@@ -148,8 +145,8 @@ export class ApiClient {
   private readonly baseUrl =
     'https://unstuck-backend-production-d9c1.up.railway.app/api/v1'
   private readonly endpoints = {
-    gamingSearch: '/gaming/chat',
-    conversations: '/gaming/conversations',
+    textChat: '/text-chat/chat',
+    conversations: '/text-chat/conversations',
     subscriptionCheckout: '/subscription/create-checkout-session',
     subscriptionStatus: '/subscription/status',
     subscriptionCancel: '/subscription/cancel',
@@ -201,13 +198,13 @@ export class ApiClient {
   }
 
   /**
-   * Send a gaming search request to the API
+   * Send a text chat request to the API
    */
-  async GamingChatQuerie(
-    request: GamingChatRequest,
+  async sendTextChat(
+    request: TextChatRequest,
     accessToken: string
-  ): Promise<GamingChatResponse> {
-    const url = `${this.baseUrl}${this.endpoints.gamingSearch}`
+  ): Promise<TextChatResponse> {
+    const url = `${this.baseUrl}${this.endpoints.textChat}`
 
     try {
       const response = await this.fetchWithTimeout(
@@ -253,7 +250,7 @@ export class ApiClient {
 
       // Parse and validate the successful response
       try {
-        const data = (await response.json()) as GamingChatResponse
+        const data = (await response.json()) as TextChatResponse
 
         // Basic validation of required fields
         if (!data.id || !data.conversation_id || !data.content) {
@@ -378,7 +375,7 @@ export class ApiClient {
     conversationId: string,
     accessToken: string
   ): Promise<ConversationHistoryResponse> {
-    const url = `${this.baseUrl}/gaming/conversations/${conversationId}/history`
+    const url = `${this.baseUrl}/text-chat/conversations/${conversationId}/history`
 
     try {
       const response = await this.fetchWithTimeout(
@@ -468,7 +465,7 @@ export class ApiClient {
     conversationId: string,
     accessToken: string
   ): Promise<void> {
-    const url = `${this.baseUrl}/gaming/conversations/${conversationId}`
+    const url = `${this.baseUrl}/text-chat/conversations/${conversationId}`
 
     try {
       const response = await this.fetchWithTimeout(

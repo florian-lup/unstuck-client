@@ -8,7 +8,7 @@ import {
   Scroll,
   ClipboardList,
 } from 'lucide-react'
-import { useGamingChat } from '../hooks/use-gaming-chat'
+import { useTextChat } from '../hooks/use-text-chat'
 import { MarkdownContent } from '../utils/markdown-content'
 import { InteractiveArea } from './interactive-area'
 import { Button } from './ui/button'
@@ -23,7 +23,7 @@ export interface Message {
   remainingRequests?: number
 }
 
-interface GamingChatProps {
+interface TextChatProps {
   onClose?: () => void
   onSendMessage?: (
     message: string,
@@ -34,13 +34,13 @@ interface GamingChatProps {
   isLoading?: boolean
 }
 
-export function GamingChat({
+export function TextChat({
   onClose,
   onSendMessage,
   onStartNewConversation,
   messages = [],
   isLoading = false,
-}: GamingChatProps) {
+}: TextChatProps) {
   const {
     // State
     message,
@@ -59,7 +59,7 @@ export function GamingChat({
     // Computed
     hasMessages,
     canSubmit,
-  } = useGamingChat({
+  } = useTextChat({
     onClose,
     onSendMessage,
     onStartNewConversation,

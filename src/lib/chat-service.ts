@@ -3,10 +3,10 @@
  * Handles conversation IDs, message history, and API calls
  */
 
-import type { Message } from '../components/gaming-chat'
+import type { Message } from '../components/text-chat'
 import {
   apiClient,
-  type GamingChatRequest,
+  type TextChatRequest,
   SubscriptionError,
 } from './api-client'
 import { secureAuth } from './auth-client'
@@ -103,7 +103,7 @@ export class ChatService {
       }
 
       // Prepare API request
-      const request: GamingChatRequest = {
+      const request: TextChatRequest = {
         query: message,
         game: selectedGame.gameName,
         ...(selectedGame.version && { version: selectedGame.version }),
@@ -111,7 +111,7 @@ export class ChatService {
       }
 
       // Make API call
-      const response = await apiClient.GamingChatQuerie(request, accessToken)
+      const response = await apiClient.sendTextChat(request, accessToken)
 
       // Update conversation ID
       this.conversationId = response.conversation_id

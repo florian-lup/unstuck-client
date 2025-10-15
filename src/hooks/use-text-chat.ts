@@ -1,7 +1,7 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import type { Message } from '../components/gaming-chat'
+import type { Message } from '../components/text-chat'
 
-interface UseGamingChatProps {
+interface UseTextChatProps {
   onClose?: () => void
   onSendMessage?: (
     message: string,
@@ -12,13 +12,13 @@ interface UseGamingChatProps {
   isLoading?: boolean
 }
 
-export function useGamingChat({
+export function useTextChat({
   onClose,
   onSendMessage,
   onStartNewConversation,
   messages = [],
   isLoading = false,
-}: UseGamingChatProps) {
+}: UseTextChatProps) {
   // Local state for message input
   const [message, setMessage] = useState('')
 
