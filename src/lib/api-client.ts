@@ -141,6 +141,20 @@ export interface VoiceToolCallResponse {
   error: string | null
 }
 
+export interface CreateUserRequest {
+  auth0_user_id: string
+  email?: string
+  username?: string
+}
+
+export interface CreateUserResponse {
+  success: boolean
+  user_id: string
+  auth0_user_id: string
+  message: string
+  is_new_user: boolean
+}
+
 export class ApiClient {
   private readonly baseUrl =
     'https://unstuck-backend-production-d9c1.up.railway.app/api/v1'
@@ -152,6 +166,7 @@ export class ApiClient {
     subscriptionCancel: '/subscription/cancel',
     voiceSession: '/voice/session',
     voiceToolCall: '/voice/tool-call',
+    createUser: '/auth/create-user',
   } as const
 
   // Timeout configurations (in milliseconds)
@@ -878,6 +893,72 @@ export class ApiClient {
       // Validate the response structure
       if (typeof data.result !== 'object') {
         throw new Error('Invalid tool call response from server')
+      }
+
+      return data
+    } catch (networkError) {
+      if (
+        networkError instanceof TypeError &&
+        networkError.message.includes('fetch')
+      ) {
+        throw new Error(
+          'Connection failed. Please check your internet connection and try again.'
+        )
+      }
+      throw networkError
+    }
+  }
+
+  /**
+   * Create a user in the backend database
+   * Called automatically after Auth0 signup (no auth token required)
+   */
+  async createUser(
+    request: CreateUserRequest
+  ): Promise<CreateUserResponse> {
+    const url = `${this.baseUrl}${this.endpoints.createUser}`
+
+    try {
+      const response = await this.fetchWithTimeout(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(request),
+        },
+        this.timeouts.quickRequests
+      )
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to create user in database'
+        let errorType = 'user_creation_error'
+
+        try {
+          const errorData = (await response.json()) as ApiErrorResponse
+          errorMessage = errorData.message || errorMessage
+          errorType = errorData.error || errorType
+        } catch {
+          errorMessage = response.statusText || `HTTP ${response.status}`
+        }
+
+        if (response.status === 429) {
+          throw new Error(
+            'Rate limit exceeded. Please wait a moment and try again.'
+          )
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.')
+        } else {
+          throw new Error(`${errorType}: ${errorMessage}`)
+        }
+      }
+
+      const data = (await response.json()) as CreateUserResponse
+
+      // Validate the response structure
+      if (!data.success || !data.user_id || !data.auth0_user_id) {
+        throw new Error('Invalid user creation response from server')
       }
 
       return data

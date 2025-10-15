@@ -8,6 +8,7 @@
  * - DeviceFlowManager: Handles OAuth2 Device Authorization Flow
  */
 import { Auth0Config } from '../../config/auth.config'
+import { logger } from '../utils/logger'
 import {
   DeviceFlowManager,
   DeviceAuthorizationResult,
@@ -245,6 +246,9 @@ export class Auth0Service {
       await this.storeSession(session)
       this.currentSession = session
 
+      // Check if this is a new user and create in database if needed
+      await this.createUserInDatabase(user)
+
       // Notify listeners
       this.notifyListeners('SIGNED_IN', session)
     } catch {
@@ -298,6 +302,10 @@ export class Auth0Service {
             )
             this.currentSession.tokens = refreshedTokens
             await this.storeSession(this.currentSession)
+
+            // Ensure user is created in database
+            await this.createUserInDatabase(this.currentSession.user)
+
             this.notifyListeners('SIGNED_IN', this.currentSession)
           } catch {
             await this.clearSession()
@@ -306,6 +314,10 @@ export class Auth0Service {
         } else {
           // Tokens are still valid
           this.currentSession = restoredSession
+
+          // Ensure user is created in database
+          await this.createUserInDatabase(this.currentSession.user)
+
           this.notifyListeners('SIGNED_IN', this.currentSession)
         }
       }
@@ -337,6 +349,84 @@ export class Auth0Service {
         // Silently ignore listener errors
       }
     })
+  }
+
+  /**
+   * Create user in backend database
+   * Called once per user after successful Auth0 authentication
+   */
+  private async createUserInDatabase(user: Auth0User): Promise<void> {
+    try {
+      // Check if we've already created this user
+      const createdUsersKey = 'created_users'
+      const createdUsersData = await this.secureStorage.getItem(createdUsersKey)
+      const createdUsers: Set<string> = createdUsersData
+        ? new Set(JSON.parse(createdUsersData) as string[])
+        : new Set()
+
+      // If user already created, skip
+      if (createdUsers.has(user.sub)) {
+        logger.debug('User already created in database, skipping:', user.sub)
+        return
+      }
+
+      logger.info('Creating user in backend database:', {
+        auth0_user_id: user.sub,
+        email: user.email,
+        username: user.name,
+      })
+
+      // Call the create-user endpoint
+      const response = await fetch(
+        'https://unstuck-backend-production-d9c1.up.railway.app/api/v1/auth/create-user',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            auth0_user_id: user.sub,
+            email: user.email,
+            username: user.name,
+          }),
+        }
+      )
+
+      if (response.ok) {
+        const data = (await response.json()) as {
+          success: boolean
+          user_id: string
+          is_new_user: boolean
+          message: string
+        }
+
+        if (data.success) {
+          logger.info('User creation response:', {
+            user_id: data.user_id,
+            is_new_user: data.is_new_user,
+            message: data.message,
+          })
+
+          // Mark user as created
+          createdUsers.add(user.sub)
+          await this.secureStorage.setItem(
+            createdUsersKey,
+            JSON.stringify(Array.from(createdUsers))
+          )
+
+          logger.debug('User marked as created in local storage')
+        }
+      } else {
+        logger.warn('User creation request failed:', {
+          status: response.status,
+          statusText: response.statusText,
+        })
+      }
+      // Silently fail if user creation fails - authentication should still succeed
+    } catch (error) {
+      logger.error('Error creating user in database:', error)
+      // Silently fail - don't block authentication if user creation fails
+    }
   }
 }
 
