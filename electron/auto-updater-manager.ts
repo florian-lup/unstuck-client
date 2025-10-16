@@ -50,7 +50,6 @@ export class AutoUpdaterManager {
   private registerIPCHandlers(): void {
     // Handle restart request from renderer
     ipcMain.handle('updater:restart-and-install', () => {
-      logger.info('Restart and install requested from renderer')
       this.quitAndInstall()
       return { success: true }
     })
@@ -62,48 +61,41 @@ export class AutoUpdaterManager {
   private setupEventHandlers(): void {
     // Event: Checking for updates
     autoUpdater.on('checking-for-update', () => {
-      logger.info('Checking for updates...')
+      // Checking for updates
     })
 
     // Event: Update available
-    autoUpdater.on('update-available', (info) => {
-      logger.info('Update available:', info.version)
+    autoUpdater.on('update-available', () => {
       // Immediately start downloading the update
-      autoUpdater.downloadUpdate().catch((error: unknown) => {
-        logger.error('Error downloading update:', error)
+      autoUpdater.downloadUpdate().catch(() => {
+        // Error downloading update
       })
     })
 
     // Event: No update available
-    autoUpdater.on('update-not-available', (info) => {
-      logger.info('No updates available. Current version:', info.version)
+    autoUpdater.on('update-not-available', () => {
+      // No updates available
     })
 
     // Event: Download progress
     autoUpdater.on('download-progress', (progressObj) => {
-      const message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`
-      logger.info(message)
-
-      // Optional: Send progress to renderer if you want to show a progress indicator
+      // Send progress to renderer
       this.sendStatusToWindow('download-progress', progressObj)
     })
 
     // Event: Update downloaded
     autoUpdater.on('update-downloaded', (info) => {
-      logger.info('Update downloaded:', info.version)
       this.isUpdateDownloaded = true
 
       // Notify renderer that update is ready
       this.sendStatusToWindow('update-ready', info.version)
 
       // Update will be installed when user quits the app (autoInstallOnAppQuit = true)
-      logger.info('Update ready to install. Will be installed when app quits.')
     })
 
     // Event: Error occurred
-    autoUpdater.on('error', (error) => {
-      logger.error('Error in auto-updater:', error)
-      // Don't crash the app on update errors, just log them
+    autoUpdater.on('error', () => {
+      // Don't crash the app on update errors
     })
   }
 
@@ -114,22 +106,13 @@ export class AutoUpdaterManager {
   public async checkForUpdates(): Promise<void> {
     // Skip update checks in development
     if (process.env.NODE_ENV === 'development') {
-      logger.info('Skipping update check in development mode')
       return
     }
 
     try {
       // Check for updates
-      const result = await autoUpdater.checkForUpdates()
-
-      if (result) {
-        logger.info(
-          'Update check completed. Update info:',
-          result.updateInfo.version
-        )
-      }
-    } catch (error) {
-      logger.error('Failed to check for updates:', error)
+      await autoUpdater.checkForUpdates()
+    } catch {
       // Don't throw - we don't want to block app startup if update check fails
     }
   }

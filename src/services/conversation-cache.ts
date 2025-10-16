@@ -125,7 +125,8 @@ export class ConversationCacheService {
         data: {
           conversations: updatedConversations,
           total: Math.max(0, this.conversationListCache.data.total - 1),
-          remaining_requests: this.conversationListCache.data.remaining_requests,
+          remaining_requests:
+            this.conversationListCache.data.remaining_requests,
           max_requests: this.conversationListCache.data.max_requests,
           limit_type: this.conversationListCache.data.limit_type,
           reset_date: this.conversationListCache.data.reset_date,
@@ -150,7 +151,8 @@ export class ConversationCacheService {
         data: {
           conversations: updatedConversations,
           total: this.conversationListCache.data.total + 1,
-          remaining_requests: this.conversationListCache.data.remaining_requests,
+          remaining_requests:
+            this.conversationListCache.data.remaining_requests,
           max_requests: this.conversationListCache.data.max_requests,
           limit_type: this.conversationListCache.data.limit_type,
           reset_date: this.conversationListCache.data.reset_date,

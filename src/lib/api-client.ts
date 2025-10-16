@@ -923,9 +923,7 @@ export class ApiClient {
    * Create a user in the backend database
    * Called automatically after Auth0 signup (no auth token required)
    */
-  async createUser(
-    request: CreateUserRequest
-  ): Promise<CreateUserResponse> {
+  async createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
     const url = `${this.baseUrl}${this.endpoints.createUser}`
 
     try {

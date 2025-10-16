@@ -223,9 +223,8 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
             accessToken
           )
         }
-      } catch (error) {
-        // Log error but don't prevent disconnection
-        console.error('Failed to end voice session:', error)
+      } catch {
+        // Error ending voice session, but don't prevent disconnection
       }
       sessionIdRef.current = null
     }
@@ -332,9 +331,8 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
                 accessToken
               )
             }
-          } catch (error) {
-            // Log error but don't prevent cleanup
-            console.error('Failed to end voice session on unmount:', error)
+          } catch {
+            // Error ending voice session, but don't prevent cleanup
           }
         }
         void endSession()

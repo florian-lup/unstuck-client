@@ -8,7 +8,6 @@
  * - DeviceFlowManager: Handles OAuth2 Device Authorization Flow
  */
 import { Auth0Config } from '../../config/auth.config'
-import { logger } from '../utils/logger'
 import {
   DeviceFlowManager,
   DeviceAuthorizationResult,
@@ -366,15 +365,8 @@ export class Auth0Service {
 
       // If user already created, skip
       if (createdUsers.has(user.sub)) {
-        logger.debug('User already created in database, skipping:', user.sub)
         return
       }
-
-      logger.info('Creating user in backend database:', {
-        auth0_user_id: user.sub,
-        email: user.email,
-        username: user.name,
-      })
 
       // Call the create-user endpoint
       const response = await fetch(
@@ -401,30 +393,16 @@ export class Auth0Service {
         }
 
         if (data.success) {
-          logger.info('User creation response:', {
-            user_id: data.user_id,
-            is_new_user: data.is_new_user,
-            message: data.message,
-          })
-
           // Mark user as created
           createdUsers.add(user.sub)
           await this.secureStorage.setItem(
             createdUsersKey,
             JSON.stringify(Array.from(createdUsers))
           )
-
-          logger.debug('User marked as created in local storage')
         }
-      } else {
-        logger.warn('User creation request failed:', {
-          status: response.status,
-          statusText: response.statusText,
-        })
       }
       // Silently fail if user creation fails - authentication should still succeed
-    } catch (error) {
-      logger.error('Error creating user in database:', error)
+    } catch {
       // Silently fail - don't block authentication if user creation fails
     }
   }
