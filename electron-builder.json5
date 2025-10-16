@@ -27,6 +27,7 @@
     ],
     icon: 'public/unstuck-logo.ico',
     artifactName: '${productName}-Windows-${version}-Setup.${ext}',
+    executableName: 'Unstuck',
   },
   nsis: {
     oneClick: false,
