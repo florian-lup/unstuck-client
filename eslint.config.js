@@ -26,9 +26,9 @@ export default tseslint.config(
   // Security plugin recommended rules (applied globally)
   security.configs.recommended,
 
-  // Configuration files first (before type-checked rules)
+  // Configuration files and build scripts first (before type-checked rules)
   {
-    files: ['*.config.{js,ts,mjs}', '*.config.*.{js,ts,mjs}', 'vite.config.ts'],
+    files: ['*.config.{js,ts,mjs}', '*.config.*.{js,ts,mjs}', 'vite.config.ts', 'build/**/*.{js,mjs}'],
     ...tseslint.configs.base,
     languageOptions: {
       ecmaVersion: 2020,
