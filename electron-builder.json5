@@ -10,7 +10,7 @@
   files: ['dist', 'dist-electron'],
   publish: {
     provider: 'github',
-    owner: 'https://github.com/florian-lup',
+    owner: 'florian-lup',
     repo: 'unstuck-client',
     releaseType: 'release',
     // Publish both full installer and blockmap files for delta updates
@@ -42,9 +42,10 @@
     // Code signing configuration for Windows
     // Certificate path via CSC_LINK (can be .pfx or .p12)
     // Certificate password via CSC_KEY_PASSWORD
-    // Subject name via WIN_CSC_NAME (if you have multiple certs)
+    // Subject name via WIN_CSC_NAME (for hardware tokens or multiple certs)
     signingHashAlgorithms: ['sha256'],
-    // For EV certificates, you might need additional configuration
+    // Specify certificate by subject name (useful for USB tokens like Certum)
+    // certificateSubjectName will be read from WIN_CSC_NAME environment variable
     // certificateSubjectName: process.env.WIN_CSC_NAME,
     // Verify signature after signing (important for auto-updates)
     verifyUpdateCodeSignature: true,
