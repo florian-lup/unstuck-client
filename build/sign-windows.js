@@ -1,10 +1,11 @@
 /**
  * Custom Windows signing function for Certum USB tokens
- * This script is needed because Certum tokens require specifying the CSP explicitly
+ * Uses Certum's SmartSign tool which properly handles USB token certificates
  */
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs';
 
 const execFileAsync = promisify(execFile);
 
@@ -18,42 +19,34 @@ export default async function sign(configuration) {
     return;
   }
 
-  console.log(`Signing ${path.basename(filePath)} with Certum USB token...`);
+  console.log(`Signing ${path.basename(filePath)} with Certum SmartSign...`);
 
-  // Certificate subject name for Certum USB token
-  const certSubjectName = 'Samson-Florian Lup';
+  // Certum SmartSign paths
+  const smartSignPath = 'C:\\Program Files\\Certum\\SimplySign Desktop\\proCertum SmartSign\\proCertumSmartSign.exe';
 
-  // Find signtool.exe (electron-builder provides this in the cache)
-  const signtoolPath = configuration.computeSignToolArgs
-    ? path.join(
-        process.env.LOCALAPPDATA || '',
-        'electron-builder',
-        'Cache',
-        'winCodeSign',
-        'winCodeSign-2.6.0',
-        'windows-10',
-        'x64',
-        'signtool.exe'
-      )
-    : 'signtool.exe'; // Fallback to PATH
+  // Check if SmartSign is available
+  if (!fs.existsSync(smartSignPath)) {
+    console.error('✗ Certum SmartSign not found. Please install SimplySign Desktop.');
+    throw new Error('Certum SmartSign not installed');
+  }
 
-  // Build signtool arguments
-  // Use /n with certificate subject name - this works better with USB tokens
+  // SmartSign uses signtool internally but handles USB token access properly
   const args = [
     'sign',
-    '/n', certSubjectName,    // Select certificate by subject name
-    '/fd', 'sha256',          // File digest algorithm
-    '/td', 'sha256',          // Timestamp digest algorithm
-    '/tr', 'http://timestamp.digicert.com',  // RFC 3161 timestamp server
-    '/d', 'Unstuck',          // Description
-    '/du', 'https://github.com/florian-lup/unstuck-client',  // Description URL
+    '/fd', 'sha256',
+    '/tr', 'http://timestamp.digicert.com',
+    '/td', 'sha256',
+    '/d', 'Unstuck',
     filePath,
   ];
 
   try {
-    const { stdout, stderr } = await execFileAsync(signtoolPath, args);
+    console.log('Please unlock your USB token if prompted...');
+    const { stdout, stderr } = await execFileAsync(smartSignPath, args, {
+      timeout: 120000, // 2 minutes for PIN entry
+    });
     if (stdout) console.log(stdout);
-    if (stderr) console.warn(stderr);
+    if (stderr && !stderr.includes('Successfully signed')) console.warn(stderr);
     console.log(`✓ Successfully signed ${path.basename(filePath)}`);
   } catch (error) {
     console.error(`✗ Failed to sign ${path.basename(filePath)}:`, error.message);
