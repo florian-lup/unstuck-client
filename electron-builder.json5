@@ -19,16 +19,11 @@
   mac: {
     target: ['dmg'],
     artifactName: '${productName}-Mac-${version}-Installer.${ext}',
-    // Code signing configuration for macOS
-    hardenedRuntime: true,
-    gatekeeperAssess: false,
-    entitlements: 'build/entitlements.mac.plist',
-    entitlementsInherit: 'build/entitlements.mac.plist',
-    // Identity will be auto-discovered from keychain if available
-    // Or can be specified via CSC_NAME environment variable
+    // Code signing disabled
+    identity: null,
   },
-  // macOS notarization - required for distribution outside Mac App Store
-  afterSign: 'build/notarize.js',
+  // macOS notarization disabled
+  // afterSign: 'build/notarize.js',
   win: {
     target: [
       {
@@ -39,10 +34,8 @@
     icon: 'public/unstuck-logo.ico',
     artifactName: '${productName}-Windows-${version}-Setup.${ext}',
     executableName: 'Unstuck',
-    // Code signing with Certum USB token using Key Container
-    signingHashAlgorithms: ['sha256'],
-    sign: 'build/sign-windows.js',
-    verifyUpdateCodeSignature: true,
+    // Code signing disabled
+    verifyUpdateCodeSignature: false,
   },
   nsis: {
     oneClick: false,
