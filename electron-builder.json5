@@ -39,12 +39,12 @@
     icon: 'public/unstuck-logo.ico',
     artifactName: '${productName}-Windows-${version}-Setup.${ext}',
     executableName: 'Unstuck',
-    // Code signing configuration for Windows
-    // Certificate path via CSC_LINK (can be .pfx or .p12)
-    // Certificate password via CSC_KEY_PASSWORD
+    // Code signing configuration for Windows with Certum USB token
     signingHashAlgorithms: ['sha256'],
-    // Specify certificate by subject name (useful for USB tokens like Certum)
-    certificateSubjectName: 'Samson-Florian Lup',
+    // Specify certificate by thumbprint for Certum USB token
+    certificateSha1: 'EDDEDFF1B14FC265517FD3D3E51AEF239AF672BB',
+    // Specify Certum's CSP for USB token access
+    signtoolOptions: ['/csp', 'cryptoCertum3 CSP'],
     // Verify signature after signing (important for auto-updates)
     verifyUpdateCodeSignature: true,
   },
