@@ -20,11 +20,8 @@ export default async function sign(configuration) {
 
   console.log(`Signing ${path.basename(filePath)} with Certum USB token...`);
 
-  // Certificate thumbprint for Certum USB token
-  const certThumbprint = 'EDDEDFF1B14FC265517FD3D3E51AEF239AF672BB';
-  
-  // Certum's Cryptographic Service Provider
-  const csp = 'cryptoCertum3 CSP';
+  // Certificate subject name for Certum USB token
+  const certSubjectName = 'Samson-Florian Lup';
 
   // Find signtool.exe (electron-builder provides this in the cache)
   const signtoolPath = configuration.computeSignToolArgs
@@ -41,15 +38,15 @@ export default async function sign(configuration) {
     : 'signtool.exe'; // Fallback to PATH
 
   // Build signtool arguments
+  // Use /n with certificate subject name - this works better with USB tokens
   const args = [
     'sign',
-    '/sha1', certThumbprint,
-    '/fd', 'sha256',
-    '/td', 'sha256',
-    '/tr', 'http://timestamp.digicert.com',
-    '/csp', csp,
-    '/d', 'Unstuck',
-    '/du', 'https://github.com/florian-lup/unstuck-client',
+    '/n', certSubjectName,    // Select certificate by subject name
+    '/fd', 'sha256',          // File digest algorithm
+    '/td', 'sha256',          // Timestamp digest algorithm
+    '/tr', 'http://timestamp.digicert.com',  // RFC 3161 timestamp server
+    '/d', 'Unstuck',          // Description
+    '/du', 'https://github.com/florian-lup/unstuck-client',  // Description URL
     filePath,
   ];
 
