@@ -41,10 +41,8 @@
     executableName: 'Unstuck',
     // Code signing configuration for Windows with Certum USB token
     signingHashAlgorithms: ['sha256'],
-    // Specify certificate by thumbprint for Certum USB token
-    certificateSha1: 'EDDEDFF1B14FC265517FD3D3E51AEF239AF672BB',
-    // Specify Certum's CSP for USB token access
-    signtoolOptions: ['/csp', 'cryptoCertum3 CSP'],
+    // Custom signing function that specifies Certum's CSP
+    sign: 'build/sign-windows.js',
     // Verify signature after signing (important for auto-updates)
     verifyUpdateCodeSignature: true,
   },
