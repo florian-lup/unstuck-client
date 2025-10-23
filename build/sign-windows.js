@@ -31,13 +31,12 @@ export default async function sign(configuration) {
     'signtool.exe'
   );
 
-  // Use /a for automatic selection and /n for certificate name
+  // Use SHA1 to identify certificate - Windows will auto-detect CSP and container
   const args = [
     'sign',
-    '/a',                       // Automatic certificate selection
-    '/n', 'Samson-Florian Lup', // Certificate subject name
+    '/sha1', 'EDDEDFF1B14FC265517FD3D3E51AEF239AF672BB',  // Certificate thumbprint
     '/fd', 'sha256',            // File digest algorithm
-    '/tr', 'http://timestamp.digicert.com',  // RFC 3161 timestamp
+    '/tr', 'http://time.certum.pl/',  // Certum timestamp server
     '/td', 'sha256',            // Timestamp digest
     '/d', 'Unstuck',            // Description
     '/du', 'https://github.com/florian-lup/unstuck-client',
