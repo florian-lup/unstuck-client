@@ -1,11 +1,10 @@
 /**
  * Custom Windows signing function for Certum USB tokens
- * Uses Certum's SmartSign tool which properly handles USB token certificates
+ * Requires SimplySign Desktop to be running in the background
  */
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
-import fs from 'fs';
 
 const execFileAsync = promisify(execFile);
 
@@ -19,39 +18,56 @@ export default async function sign(configuration) {
     return;
   }
 
-  console.log(`Signing ${path.basename(filePath)} with Certum SmartSign...`);
+  console.log(`Signing ${path.basename(filePath)} with Certum USB token...`);
 
-  // Certum SmartSign paths
-  const smartSignPath = 'C:\\Program Files\\Certum\\SimplySign Desktop\\proCertum SmartSign\\proCertumSmartSign.exe';
+  // Certificate thumbprint
+  const certThumbprint = 'EDDEDFF1B14FC265517FD3D3E51AEF239AF672BB';
 
-  // Check if SmartSign is available
-  if (!fs.existsSync(smartSignPath)) {
-    console.error('✗ Certum SmartSign not found. Please install SimplySign Desktop.');
-    throw new Error('Certum SmartSign not installed');
-  }
+  // Find signtool.exe
+  const signtoolPath = path.join(
+    process.env.LOCALAPPDATA || '',
+    'electron-builder',
+    'Cache',
+    'winCodeSign',
+    'winCodeSign-2.6.0',
+    'windows-10',
+    'x64',
+    'signtool.exe'
+  );
 
-  // SmartSign uses signtool internally but handles USB token access properly
+  // Build signtool arguments - use /s to specify store location
   const args = [
     'sign',
-    '/fd', 'sha256',
-    '/tr', 'http://timestamp.digicert.com',
-    '/td', 'sha256',
-    '/d', 'Unstuck',
+    '/sha1', certThumbprint,    // Use thumbprint
+    '/s', 'MY',                  // Personal certificate store
+    '/fd', 'sha256',             // File digest algorithm
+    '/tr', 'http://timestamp.digicert.com',  // RFC 3161 timestamp server
+    '/td', 'sha256',             // Timestamp digest algorithm
+    '/d', 'Unstuck',             // Description
+    '/du', 'https://github.com/florian-lup/unstuck-client',  // Description URL
+    '/v',                        // Verbose output
     filePath,
   ];
 
   try {
-    console.log('Please unlock your USB token if prompted...');
-    const { stdout, stderr } = await execFileAsync(smartSignPath, args, {
+    console.log('Please enter your USB token PIN if prompted...');
+    const { stdout, stderr } = await execFileAsync(signtoolPath, args, {
       timeout: 120000, // 2 minutes for PIN entry
     });
     if (stdout) console.log(stdout);
-    if (stderr && !stderr.includes('Successfully signed')) console.warn(stderr);
+    if (stderr) console.warn(stderr);
     console.log(`✓ Successfully signed ${path.basename(filePath)}`);
   } catch (error) {
     console.error(`✗ Failed to sign ${path.basename(filePath)}:`, error.message);
     if (error.stdout) console.log(error.stdout);
     if (error.stderr) console.error(error.stderr);
+    
+    // Provide helpful error message
+    console.error('\n💡 Troubleshooting:');
+    console.error('   1. Make sure SimplySign Desktop is running (check system tray)');
+    console.error('   2. Ensure your USB token is plugged in');
+    console.error('   3. Try unplugging and replugging the USB token');
+    
     throw error;
   }
 }
