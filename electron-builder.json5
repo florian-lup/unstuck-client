@@ -42,11 +42,9 @@
     // Code signing configuration for Windows
     // Certificate path via CSC_LINK (can be .pfx or .p12)
     // Certificate password via CSC_KEY_PASSWORD
-    // Subject name via WIN_CSC_NAME (for hardware tokens or multiple certs)
     signingHashAlgorithms: ['sha256'],
     // Specify certificate by subject name (useful for USB tokens like Certum)
-    // certificateSubjectName will be read from WIN_CSC_NAME environment variable
-    // certificateSubjectName: process.env.WIN_CSC_NAME,
+    certificateSubjectName: 'Samson-Florian Lup',
     // Verify signature after signing (important for auto-updates)
     verifyUpdateCodeSignature: true,
   },
