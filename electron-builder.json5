@@ -39,12 +39,12 @@
     icon: 'public/unstuck-logo.ico',
     artifactName: '${productName}-Windows-${version}-Setup.${ext}',
     executableName: 'Unstuck',
-    // Code signing configuration for Windows with Certum USB token
+    // Code signing: Certum USB tokens require manual signing with SmartSign
+    // Build unsigned, then sign with: proCertum SmartSign GUI
+    // Sign both: Unstuck.exe AND Unstuck-Windows-X.X.X-Setup.exe
     signingHashAlgorithms: ['sha256'],
-    // Custom signing function that specifies Certum's CSP
-    sign: 'build/sign-windows.js',
-    // Verify signature after signing (important for auto-updates)
-    verifyUpdateCodeSignature: true,
+    // sign: 'build/sign-windows.js',  // Disabled - Certum USB not compatible with signtool
+    verifyUpdateCodeSignature: false,
   },
   nsis: {
     oneClick: false,
