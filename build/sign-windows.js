@@ -1,6 +1,6 @@
 /**
  * Custom Windows signing function for Certum USB tokens
- * Requires SimplySign Desktop to be running in the background
+ * Requires: proCertum CardManager installed and card initialized with PIN
  */
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -20,10 +20,6 @@ export default async function sign(configuration) {
 
   console.log(`Signing ${path.basename(filePath)} with Certum USB token...`);
 
-  // Certificate thumbprint
-  const certThumbprint = 'EDDEDFF1B14FC265517FD3D3E51AEF239AF672BB';
-
-  // Find signtool.exe
   const signtoolPath = path.join(
     process.env.LOCALAPPDATA || '',
     'electron-builder',
@@ -35,39 +31,37 @@ export default async function sign(configuration) {
     'signtool.exe'
   );
 
-  // Build signtool arguments - use /s to specify store location
+  // Use /a for automatic selection and /n for certificate name
   const args = [
     'sign',
-    '/sha1', certThumbprint,    // Use thumbprint
-    '/s', 'MY',                  // Personal certificate store
-    '/fd', 'sha256',             // File digest algorithm
-    '/tr', 'http://timestamp.digicert.com',  // RFC 3161 timestamp server
-    '/td', 'sha256',             // Timestamp digest algorithm
-    '/d', 'Unstuck',             // Description
-    '/du', 'https://github.com/florian-lup/unstuck-client',  // Description URL
-    '/v',                        // Verbose output
+    '/a',                       // Automatic certificate selection
+    '/n', 'Samson-Florian Lup', // Certificate subject name
+    '/fd', 'sha256',            // File digest algorithm
+    '/tr', 'http://timestamp.digicert.com',  // RFC 3161 timestamp
+    '/td', 'sha256',            // Timestamp digest
+    '/d', 'Unstuck',            // Description
+    '/du', 'https://github.com/florian-lup/unstuck-client',
+    '/v',                       // Verbose
     filePath,
   ];
 
   try {
     console.log('Please enter your USB token PIN if prompted...');
     const { stdout, stderr } = await execFileAsync(signtoolPath, args, {
-      timeout: 120000, // 2 minutes for PIN entry
+      timeout: 120000,
     });
     if (stdout) console.log(stdout);
     if (stderr) console.warn(stderr);
     console.log(`✓ Successfully signed ${path.basename(filePath)}`);
   } catch (error) {
-    console.error(`✗ Failed to sign ${path.basename(filePath)}:`, error.message);
+    console.error(`✗ Failed to sign ${path.basename(filePath)}`);
     if (error.stdout) console.log(error.stdout);
     if (error.stderr) console.error(error.stderr);
-    
-    // Provide helpful error message
-    console.error('\n💡 Troubleshooting:');
-    console.error('   1. Make sure SimplySign Desktop is running (check system tray)');
-    console.error('   2. Ensure your USB token is plugged in');
-    console.error('   3. Try unplugging and replugging the USB token');
-    
+    console.error('\n💡 Make sure:');
+    console.error('   1. proCertum CardManager is installed');
+    console.error('   2. USB token has been initialized with PIN/PUK');
+    console.error('   3. USB token is plugged in');
+    console.error('   Download CardManager: https://support.certum.eu/');
     throw error;
   }
 }
