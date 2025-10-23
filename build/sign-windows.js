@@ -9,10 +9,12 @@ import path from 'path';
 const execFileAsync = promisify(execFile);
 
 export default async function sign(configuration) {
-  const { path: filePath, isWin } = configuration;
+  const { path: filePath } = configuration;
 
-  if (!isWin) {
-    console.warn('Skipping signing: Not a Windows file');
+  // Check if this is a Windows executable
+  const ext = path.extname(filePath).toLowerCase();
+  if (!['.exe', '.dll', '.node'].includes(ext)) {
+    console.log(`Skipping ${path.basename(filePath)} - not a Windows executable`);
     return;
   }
 
