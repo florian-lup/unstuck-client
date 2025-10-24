@@ -3,6 +3,7 @@
   $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
   appId: 'com.unstuck.app',
   asar: true,
+  asarUnpack: ['**/node_modules/auto-launch/**/*', '**/node_modules/winreg/**/*'],
   productName: 'Unstuck',
   directories: {
     output: 'release/${version}',
