@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import unstuckLogo from '../../public/unstuck-logo.svg'
 import { useAuth } from '../hooks/use-auth'
 import { useAuthFlow } from '../hooks/use-auth-flow'
 import { useCountdownTimer } from '../hooks/use-countdown-timer'
@@ -111,7 +112,7 @@ export function AuthWindow({ onAuthSuccess }: AuthWindowProps) {
           <div className="flex items-center justify-center gap-4">
             <div className="w-10 h-10">
               <img
-                src="/unstuck-logo.svg"
+                src={unstuckLogo}
                 alt="Unstuck Logo"
                 className="w-full h-full"
               />
