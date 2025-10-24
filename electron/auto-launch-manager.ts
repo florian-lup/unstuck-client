@@ -1,19 +1,11 @@
 import fs from 'fs'
 import path from 'path'
-import AutoLaunch from 'auto-launch'
 import { app, ipcMain } from 'electron'
 
 export class AutoLaunchManager {
-  private autoLauncher: AutoLaunch
   private settingsPath: string
 
-  constructor(appName = 'Unstuck') {
-    // Initialize auto-launcher with app details
-    this.autoLauncher = new AutoLaunch({
-      name: appName,
-      path: app.getPath('exe'),
-    })
-
+  constructor() {
     // Path to store settings
     this.settingsPath = path.join(
       app.getPath('userData'),
@@ -28,11 +20,11 @@ export class AutoLaunchManager {
    */
   async enableAutoLaunch(): Promise<boolean> {
     try {
-      const isEnabled = await this.autoLauncher.isEnabled()
-      if (!isEnabled) {
-        await this.autoLauncher.enable()
-        await this.saveAutoLaunchSetting(true)
-      }
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        path: app.getPath('exe'),
+      })
+      await this.saveAutoLaunchSetting(true)
       return true
     } catch {
       return false
@@ -44,11 +36,10 @@ export class AutoLaunchManager {
    */
   async disableAutoLaunch(): Promise<boolean> {
     try {
-      const isEnabled = await this.autoLauncher.isEnabled()
-      if (isEnabled) {
-        await this.autoLauncher.disable()
-        await this.saveAutoLaunchSetting(false)
-      }
+      app.setLoginItemSettings({
+        openAtLogin: false,
+      })
+      await this.saveAutoLaunchSetting(false)
       return true
     } catch {
       return false
@@ -60,7 +51,8 @@ export class AutoLaunchManager {
    */
   async isAutoLaunchEnabled(): Promise<boolean> {
     try {
-      return await this.autoLauncher.isEnabled()
+      const loginItemSettings = app.getLoginItemSettings()
+      return await Promise.resolve(loginItemSettings.openAtLogin)
     } catch {
       return false
     }

@@ -54,7 +54,7 @@ const windowManager = new WindowManager(
 const authIPCHandlers = new AuthIPCHandlers(windowManager)
 const appLifecycle = new AppLifecycleManager(windowManager)
 const shortcutsManager = new ShortcutsManager(windowManager)
-const autoLaunchManager = new AutoLaunchManager('Unstuck')
+const autoLaunchManager = new AutoLaunchManager()
 const autoUpdaterManager = new AutoUpdaterManager()
 
 // App initialization
