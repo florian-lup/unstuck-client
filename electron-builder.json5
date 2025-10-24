@@ -3,11 +3,12 @@
   $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
   appId: 'com.unstuck.app',
   asar: true,
+  asarUnpack: ['**/package.json'],
   productName: 'Unstuck',
   directories: {
     output: 'release/${version}',
   },
-  files: ['dist', 'dist-electron'],
+  files: ['dist', 'dist-electron', 'package.json'],
   publish: {
     provider: 'github',
     owner: 'florian-lup',
