@@ -44,6 +44,8 @@
     deleteAppDataOnUninstall: false,
     // Generate delta updates for faster downloads
     differentialPackage: true,
+    // Set the installer file icon
+    installerIcon: 'public/unstuck-logo.ico',
   },
   linux: {
     target: ['AppImage'],
