@@ -29,6 +29,34 @@ export interface TextChatResponse {
   }
 }
 
+export interface GamingChatResponse {
+  id: string
+  conversation_id: string
+  model: string
+  created: number
+  content: string
+  search_results: {
+    title: string
+    url: string
+    date: string | null
+  }[]
+  usage: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+    search_context_size: string
+    citation_tokens: number
+    num_search_queries: number
+  }
+  finish_reason: string
+  request_limit_info: {
+    remaining_requests: number
+    max_requests: number
+    limit_type: 'lifetime' | 'monthly'
+    reset_date: string | null
+  }
+}
+
 export interface ApiErrorResponse {
   error: string
   message: string
@@ -170,6 +198,7 @@ export class ApiClient {
     'https://unstuck-backend-production-d9c1.up.railway.app/api/v1'
   private readonly endpoints = {
     textChat: '/text-chat/chat',
+    gamingChat: '/gaming/chat',
     conversations: '/text-chat/conversations',
     subscriptionCheckout: '/subscription/create-checkout-session',
     subscriptionStatus: '/subscription/status',
@@ -276,6 +305,90 @@ export class ApiClient {
       // Parse and validate the successful response
       try {
         const data = (await response.json()) as TextChatResponse
+
+        // Basic validation of required fields
+        if (!data.id || !data.conversation_id || !data.content) {
+          throw new Error('Invalid response format from server')
+        }
+
+        return data
+      } catch (error) {
+        if (error instanceof Error) {
+          throw error
+        }
+        throw new Error('Failed to parse server response')
+      }
+    } catch (networkError) {
+      // Check if it's a fetch error (network issues)
+      if (
+        networkError instanceof TypeError &&
+        networkError.message.includes('fetch')
+      ) {
+        throw new Error(
+          'Connection failed. Please check your internet connection and try again.'
+        )
+      }
+
+      // Re-throw other errors
+      throw networkError
+    }
+  }
+
+  /**
+   * Send a gaming chat request to the API
+   * Uses same request format as text chat but returns gaming-specific response with search results
+   */
+  async sendGamingChat(
+    request: TextChatRequest,
+    accessToken: string
+  ): Promise<GamingChatResponse> {
+    const url = `${this.baseUrl}${this.endpoints.gamingChat}`
+
+    try {
+      const response = await this.fetchWithTimeout(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(request),
+        },
+        this.timeouts.aiRequests
+      )
+
+      // Handle non-200 responses
+      if (!response.ok) {
+        // Try to parse error response
+        let errorData: ApiErrorResponse | null = null
+        try {
+          errorData = (await response.json()) as ApiErrorResponse
+        } catch {
+          // If JSON parsing fails, use status text
+          throw new Error(`Request failed: ${response.statusText}`)
+        }
+
+        // Extract message from either flat or nested structure
+        const message = errorData.detail?.message ?? errorData.message
+
+        // Check if it's a subscription error - if so, throw as SubscriptionError
+        const errorCode = errorData.detail?.error ?? errorData.error
+        if (
+          errorCode === 'feature_access_denied' ||
+          errorCode === 'request_limit_exceeded' ||
+          errorCode === 'monthly_request_limit_exceeded'
+        ) {
+          throw new SubscriptionError(message)
+        }
+
+        // For other errors, throw as regular Error
+        throw new Error(message)
+      }
+
+      // Parse and validate the successful response
+      try {
+        const data = (await response.json()) as GamingChatResponse
 
         // Basic validation of required fields
         if (!data.id || !data.conversation_id || !data.content) {

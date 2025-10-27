@@ -111,7 +111,7 @@ export class ChatService {
       }
 
       // Make API call
-      const response = await apiClient.sendTextChat(request, accessToken)
+      const response = await apiClient.sendGamingChat(request, accessToken)
 
       // Update conversation ID
       this.conversationId = response.conversation_id
@@ -123,6 +123,7 @@ export class ChatService {
         role: 'assistant',
         timestamp: new Date(response.created * 1000), // Convert Unix timestamp to Date
         remainingRequests: response.request_limit_info.remaining_requests,
+        searchResults: response.search_results,
       }
 
       return {

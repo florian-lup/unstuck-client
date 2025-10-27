@@ -21,6 +21,11 @@ export interface Message {
   role: 'user' | 'assistant'
   timestamp: Date
   remainingRequests?: number
+  searchResults?: {
+    title: string
+    url: string
+    date: string | null
+  }[]
 }
 
 interface TextChatProps {
@@ -166,7 +171,7 @@ export function TextChat({
                   {msg.role === 'assistant' &&
                     msg.remainingRequests !== undefined && (
                       <div className="px-3 pb-2 text-xs text-overlay-text-muted opacity-60">
-                        {msg.remainingRequests} requests remaining
+                        {msg.remainingRequests}
                       </div>
                     )}
                 </div>
