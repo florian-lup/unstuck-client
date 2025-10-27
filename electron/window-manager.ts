@@ -324,6 +324,14 @@ export class WindowManager {
     }
   }
 
+  setOverlayOpacity(opacity: number): void {
+    if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+      // Clamp opacity between 0.1 and 1.0 for safety
+      const clampedOpacity = Math.max(0.1, Math.min(1.0, opacity))
+      this.overlayWindow.setOpacity(clampedOpacity)
+    }
+  }
+
   // System Tray Management
   createSystemTray(): Tray {
     const iconPath = path.join(this.vitePublic, 'unstuck-logo.ico')

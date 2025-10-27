@@ -25,6 +25,7 @@ export interface IElectronAPI {
   ) => void
   ensureAlwaysOnTop: () => void
   windowInteraction: () => void
+  setWindowOpacity: (opacity: number) => void
   openExternalUrl: (
     url: string
   ) => Promise<{ success: boolean; error?: string }>

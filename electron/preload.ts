@@ -6,6 +6,7 @@ const ALLOWED_SEND_CHANNELS = [
   'ensure-always-on-top',
   'window-interaction',
   'user-logout',
+  'set-window-opacity',
 ] as const
 
 const ALLOWED_INVOKE_CHANNELS = [
@@ -202,6 +203,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   windowInteraction: () => {
     ipcRenderer.send('window-interaction')
+  },
+  setWindowOpacity: (opacity: number) => {
+    ipcRenderer.send('set-window-opacity', opacity)
   },
   openExternalUrl: async (url: string): Promise<unknown> => {
     return ipcRenderer.invoke('open-external-url', url) as Promise<unknown>

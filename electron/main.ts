@@ -110,6 +110,11 @@ void app.whenReady().then(async () => {
     shortcutsManager.registerVoiceChatShortcut(shortcut)
   })
 
+  // Window opacity IPC handler
+  ipcMain.on('set-window-opacity', (_event, opacity: number) => {
+    windowManager.setOverlayOpacity(opacity)
+  })
+
   // Initialize auto-launch functionality
   await autoLaunchManager.initializeAutoLaunch()
 

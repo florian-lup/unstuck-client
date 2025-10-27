@@ -214,78 +214,10 @@ export function useAppLogic() {
     voiceChatKeybind,
   ])
 
-  // Apply transparency changes to CSS custom properties
+  // Apply transparency using native Electron window opacity
   useEffect(() => {
-    const root = document.documentElement
-    const colorVars = [
-      '--overlay-bg-primary',
-      '--overlay-bg-secondary',
-      '--overlay-bg-hover',
-      '--overlay-text-primary',
-      '--overlay-text-secondary',
-      '--overlay-text-muted',
-      '--overlay-border-primary',
-      '--overlay-border-accent',
-      '--overlay-accent-primary',
-      '--overlay-accent-secondary',
-      '--overlay-accent-success',
-      '--overlay-accent-error',
-    ]
-
-    // Store original CSS values on first run (when transparency is 100%)
-    const originalValues: Record<string, string> = {}
-
-    const storeOriginalValues = () => {
-      const computedStyles = getComputedStyle(root)
-      colorVars.forEach((cssVar) => {
-        // Remove any existing inline styles to get CSS file values
-        root.style.removeProperty(cssVar)
-        // eslint-disable-next-line security/detect-object-injection
-        originalValues[cssVar] = computedStyles.getPropertyValue(cssVar).trim()
-      })
-    }
-
-    const applyTransparency = () => {
-      const transparencyMultiplier = transparency / 100
-
-      // Helper function to parse rgba and apply transparency
-      const applyTransparencyToColor = (originalValue: string) => {
-        // Parse rgba(r, g, b, a) format
-        const rgbaRegex = /rgba?\(([^)]+)\)/
-        const rgbaMatch = rgbaRegex.exec(originalValue)
-        if (rgbaMatch) {
-          const values = rgbaMatch[1].split(',').map((v) => v.trim())
-          const [r, g, b, originalAlpha = '1'] = values
-          const newAlpha = parseFloat(originalAlpha) * transparencyMultiplier
-
-          return `rgba(${r}, ${g}, ${b}, ${newAlpha})`
-        }
-
-        // If not rgba format, return original
-        return originalValue
-      }
-
-      // Apply transparency to all overlay colors using stored original values
-      colorVars.forEach((cssVar) => {
-        // eslint-disable-next-line security/detect-object-injection
-        const originalValue = originalValues[cssVar]
-        if (originalValue) {
-          const newValue = applyTransparencyToColor(originalValue)
-          root.style.setProperty(cssVar, newValue)
-        }
-      })
-    }
-
-    // Store original values then apply transparency
-    storeOriginalValues()
-    applyTransparency()
-
-    // Cleanup function to reset to original CSS values
-    return () => {
-      colorVars.forEach((cssVar) => {
-        root.style.removeProperty(cssVar)
-      })
-    }
+    const opacity = transparency / 100
+    window.electronAPI?.setWindowOpacity(opacity)
   }, [transparency])
 
   // Listen for settings menu open event from system tray
