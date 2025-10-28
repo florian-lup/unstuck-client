@@ -1,6 +1,7 @@
-import { BrowserWindow, ipcMain } from 'electron'
+import fs from 'fs'
+import path from 'path'
+import { BrowserWindow, ipcMain, app } from 'electron'
 import { autoUpdater } from 'electron-updater'
-import { logger } from './utils/logger'
 
 /**
  * Manages automatic updates for the application
@@ -10,17 +11,44 @@ import { logger } from './utils/logger'
  */
 export class AutoUpdaterManager {
   private isUpdateDownloaded = false
+  private logFile: string
 
   constructor() {
+    // Setup log file in user data directory
+    this.logFile = path.join(app.getPath('userData'), 'updater.log')
+    this.log('=== Auto-Updater Initialized ===')
+    this.log(`App version: ${app.getVersion()}`)
+    this.log(`Log file: ${this.logFile}`)
+
     this.configureAutoUpdater()
     this.setupEventHandlers()
     this.registerIPCHandlers()
   }
 
   /**
+   * Write to log file (always enabled, even in production)
+   */
+  private log(message: string, data?: unknown): void {
+    const timestamp = new Date().toISOString()
+    const logMessage = data
+      ? `[${timestamp}] ${message} ${JSON.stringify(data)}`
+      : `[${timestamp}] ${message}`
+
+    // Write to file
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      fs.appendFileSync(this.logFile, logMessage + '\n')
+    } catch (error) {
+      console.error('Failed to write to log file:', error)
+    }
+  }
+
+  /**
    * Configure auto-updater settings
    */
   private configureAutoUpdater(): void {
+    this.log('Configuring auto-updater...')
+
     // Disable auto-download to control the flow manually
     // We'll trigger download immediately when update is available
     autoUpdater.autoDownload = false
@@ -34,14 +62,24 @@ export class AutoUpdaterManager {
     // Check for pre-release versions only if specified
     autoUpdater.allowPrerelease = false
 
-    // Set update check interval (optional, only for periodic checks)
-    // autoUpdater.checkForUpdatesAndNotify() handles this, but we do manual checks
+    // Configure electron-updater's internal logger
+    autoUpdater.logger = {
+      info: (msg) => { this.log(`[electron-updater] ${msg}`); },
+      warn: (msg) => { this.log(`[electron-updater WARN] ${msg}`); },
+      error: (msg) => { this.log(`[electron-updater ERROR] ${msg}`); },
+      debug: (msg) => { this.log(`[electron-updater DEBUG] ${msg}`); },
+    }
 
-    // Configure logging
     if (process.env.NODE_ENV === 'development') {
-      autoUpdater.logger = logger
       autoUpdater.forceDevUpdateConfig = true
     }
+
+    this.log('Auto-updater configured', {
+      autoDownload: autoUpdater.autoDownload,
+      autoInstallOnAppQuit: autoUpdater.autoInstallOnAppQuit,
+      allowDowngrade: autoUpdater.allowDowngrade,
+      allowPrerelease: autoUpdater.allowPrerelease,
+    })
   }
 
   /**
@@ -61,24 +99,37 @@ export class AutoUpdaterManager {
   private setupEventHandlers(): void {
     // Event: Checking for updates
     autoUpdater.on('checking-for-update', () => {
-      // Checking for updates
+      this.log('Checking for updates...')
     })
 
     // Event: Update available
-    autoUpdater.on('update-available', () => {
+    autoUpdater.on('update-available', (info) => {
+      this.log('Update available!', {
+        version: info.version,
+        releaseDate: info.releaseDate,
+        files: info.files.map((f) => ({ url: f.url, size: f.size })),
+      })
       // Immediately start downloading the update
-      autoUpdater.downloadUpdate().catch(() => {
-        // Error downloading update
+      this.log('Starting download...')
+      autoUpdater.downloadUpdate().catch((error: unknown) => {
+        this.log('Error downloading update', {
+          error: error instanceof Error ? error.message : String(error),
+        })
       })
     })
 
     // Event: No update available
-    autoUpdater.on('update-not-available', () => {
-      // No updates available
+    autoUpdater.on('update-not-available', (info) => {
+      this.log('No update available - app is up to date', {
+        currentVersion: info.version,
+      })
     })
 
     // Event: Download progress
     autoUpdater.on('download-progress', (progressObj) => {
+      this.log(
+        `Download progress: ${progressObj.percent.toFixed(1)}% (${(progressObj.transferred / 1024 / 1024).toFixed(1)}MB / ${(progressObj.total / 1024 / 1024).toFixed(1)}MB)`
+      )
       // Send progress to renderer
       this.sendStatusToWindow('download-progress', progressObj)
     })
@@ -86,15 +137,24 @@ export class AutoUpdaterManager {
     // Event: Update downloaded
     autoUpdater.on('update-downloaded', (info) => {
       this.isUpdateDownloaded = true
+      this.log('Update downloaded successfully!', {
+        version: info.version,
+        releaseDate: info.releaseDate,
+      })
 
       // Notify renderer that update is ready
       this.sendStatusToWindow('update-ready', info.version)
 
       // Update will be installed when user quits the app (autoInstallOnAppQuit = true)
+      this.log('Update will be installed on next app restart')
     })
 
     // Event: Error occurred
-    autoUpdater.on('error', () => {
+    autoUpdater.on('error', (error) => {
+      this.log('Auto-updater error occurred', {
+        message: error.message,
+        stack: error.stack,
+      })
       // Don't crash the app on update errors
     })
   }
@@ -106,13 +166,26 @@ export class AutoUpdaterManager {
   public async checkForUpdates(): Promise<void> {
     // Skip update checks in development
     if (process.env.NODE_ENV === 'development') {
+      this.log('Skipping update check - running in development mode')
       return
     }
 
+    this.log('=== Starting update check ===')
+    this.log(`Current app version: ${app.getVersion()}`)
+    this.log(`Update feed URL: ${autoUpdater.getFeedURL()}`)
+
     try {
       // Check for updates
-      await autoUpdater.checkForUpdates()
-    } catch {
+      const result = await autoUpdater.checkForUpdates()
+      this.log('Update check completed', {
+        updateInfo: result?.updateInfo.version,
+        cancellationToken: result?.cancellationToken ? 'present' : 'none',
+      })
+    } catch (error) {
+      this.log('Failed to check for updates', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       // Don't throw - we don't want to block app startup if update check fails
     }
   }
