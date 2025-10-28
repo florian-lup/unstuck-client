@@ -12,7 +12,7 @@
   publish: {
     provider: 'github',
     owner: 'florian-lup',
-    repo: 'unstuck-client',
+    repo: 'unstuck-releases',
     releaseType: 'release',
     // Publish both full installer and blockmap files for delta updates
     publishAutoUpdate: true,
