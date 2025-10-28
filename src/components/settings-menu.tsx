@@ -48,7 +48,7 @@ export function SettingsMenu({
   onNewChatKeybindChange,
   currentVoiceChatKeybind = '',
   onVoiceChatKeybindChange,
-  currentTransparency = 90,
+  currentTransparency = 70,
   onTransparencyChange,
   isSubscribed,
   subscriptionLoading,

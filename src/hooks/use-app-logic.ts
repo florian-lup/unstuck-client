@@ -137,7 +137,7 @@ export function useAppLogic() {
   })
 
   // Transparency management (0-100, where 100 is fully opaque)
-  const [transparency, setTransparency] = useState<number>(90)
+  const [transparency, setTransparency] = useState<number>(70)
 
   // Parse keybind for useKeyboardToggle (only for navigation bar)
   const parsedKeybind = useMemo(
