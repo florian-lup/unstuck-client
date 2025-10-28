@@ -90,8 +90,10 @@ export function SelectGame({
       <Dropdown.Trigger>
         {selectedGame ? (
           <>
-            <Gamepad2 className="w-4 h-4" />
-            <span className="text-xs">{selectedGame.displayName}</span>
+            <Gamepad2 className="w-4 h-4 flex-shrink-0" />
+            <span className="text-xs whitespace-nowrap overflow-hidden">
+              {selectedGame.displayName}
+            </span>
           </>
         ) : (
           <>

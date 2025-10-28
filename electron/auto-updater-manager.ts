@@ -139,10 +139,13 @@ export class AutoUpdaterManager {
   /**
    * Manually trigger quit and install
    * Useful if you want to provide a "Restart Now" button in your app
+   * Updates install silently without showing the installer UI
    */
   public quitAndInstall(): void {
     if (this.isUpdateDownloaded) {
-      autoUpdater.quitAndInstall(false, true)
+      // isSilent: true = don't show installer UI for updates
+      // isForceRunAfter: true = restart app after update
+      autoUpdater.quitAndInstall(true, true)
     }
   }
 
