@@ -5,7 +5,6 @@ import {
   Settings,
   Info,
   Grip,
-  Download,
   Loader2,
   PhoneOff,
 } from 'lucide-react'
@@ -26,8 +25,6 @@ interface NavigationBarProps {
   onGameSelect?: (game: Game | null) => void
   selectedGame?: Game | null
   onDropdownOpenChange?: (open: boolean) => void
-  updateReady?: boolean
-  onUpdateClick?: () => void
   voiceState?: {
     isConnected: boolean
     isConnecting: boolean
@@ -43,8 +40,6 @@ export function NavigationBar({
   onGameSelect,
   selectedGame,
   onDropdownOpenChange,
-  updateReady,
-  onUpdateClick,
   voiceState,
 }: NavigationBarProps) {
   const handleVoiceClick = () => {
@@ -81,12 +76,6 @@ export function NavigationBar({
     // Ensure window stays on top when dropdown is used
     window.electronAPI?.windowInteraction()
     onGameSelect?.(game)
-  }
-
-  const handleUpdateClick = () => {
-    // Ensure window stays on top when button is clicked
-    window.electronAPI?.windowInteraction()
-    onUpdateClick?.()
   }
 
   return (
@@ -180,25 +169,6 @@ export function NavigationBar({
                   <Info className="w-3 h-3" />
                 </Button>
               </Tooltip>
-
-              {/* Update Button - Only shown when update is ready */}
-              {updateReady && (
-                <>
-                  {/* Divider */}
-                  <div className="w-px h-4 mx-1 bg-overlay-border-primary"></div>
-
-                  <Tooltip content="Restart">
-                    <Button
-                      onClick={handleUpdateClick}
-                      variant="gaming"
-                      size="icon"
-                      className="p-1 h-auto w-auto animate-pulse"
-                    >
-                      <Download className="w-3 h-3 text-overlay-accent-primary" />
-                    </Button>
-                  </Tooltip>
-                </>
-              )}
             </div>
 
             {/* Divider */}

@@ -266,18 +266,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
     toggle: async (): Promise<unknown> =>
       ipcRenderer.invoke('auto-launch:toggle') as Promise<unknown>,
   },
-  updater: {
-    onUpdateReady: (callback: (version: string) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, version: string) => {
-        callback(version)
-      }
-      ipcRenderer.on('updater:update-ready', listener)
-      return listener
-    },
-    removeUpdateReadyListener: () => {
-      ipcRenderer.removeAllListeners('updater:update-ready')
-    },
-    restartAndInstall: async (): Promise<unknown> =>
-      ipcRenderer.invoke('updater:restart-and-install') as Promise<unknown>,
-  },
 })

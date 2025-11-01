@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { logger } from './utils/logger'
 
@@ -46,13 +46,10 @@ export class AutoUpdaterManager {
 
   /**
    * Register IPC handlers for update actions
+   * Removed: Updates now install silently on next app restart
    */
   private registerIPCHandlers(): void {
-    // Handle restart request from renderer
-    ipcMain.handle('updater:restart-and-install', () => {
-      this.quitAndInstall()
-      return { success: true }
-    })
+    // No IPC handlers needed - updates install automatically on quit
   }
 
   /**
@@ -84,13 +81,11 @@ export class AutoUpdaterManager {
     })
 
     // Event: Update downloaded
-    autoUpdater.on('update-downloaded', (info) => {
+    autoUpdater.on('update-downloaded', () => {
       this.isUpdateDownloaded = true
 
-      // Notify renderer that update is ready
-      this.sendStatusToWindow('update-ready', info.version)
-
-      // Update will be installed when user quits the app (autoInstallOnAppQuit = true)
+      // Update will be installed silently when user quits the app (autoInstallOnAppQuit = true)
+      // No notification sent to renderer - silent update on next restart
     })
 
     // Event: Error occurred
@@ -153,9 +148,6 @@ export class AutoUpdaterManager {
    * Cleanup method for proper shutdown
    */
   public cleanup(): void {
-    // Remove IPC handlers
-    ipcMain.removeHandler('updater:restart-and-install')
-
     // Remove all event listeners
     autoUpdater.removeAllListeners()
   }
