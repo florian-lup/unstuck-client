@@ -57,10 +57,10 @@ export class WindowManager {
 
   createOverlayWindow(): BrowserWindow {
     const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize
-    // Increased by 50% to compensate for DPI scaling from 150% to 100%
-    // Original: 520x650, New: 780x975 (maintains same visual size)
-    const windowWidth = 780
-    const windowHeight = 975
+    // Balanced size increase for better fit on smaller screens
+    // Original: 520x650, New: 650x850 (25% larger, better for smaller displays)
+    const windowWidth = 650
+    const windowHeight = 850
 
     this.overlayWindow = new BrowserWindow({
       title: 'Unstuck',
@@ -91,7 +91,7 @@ export class WindowManager {
         offscreen: false,
         webgl: false,
         plugins: false,
-        zoomFactor: 1.5, // Set zoom to 1.5x to compensate for DPI scaling
+        zoomFactor: 1.25, // Set zoom to 1.25x for balanced size on smaller screens
       },
     })
 
@@ -207,8 +207,8 @@ export class WindowManager {
         const bounds = this.overlayWindow.getBounds()
         
         // Force window back to correct size if it changed
-        if (bounds.width !== 780 || bounds.height !== 975) {
-          this.overlayWindow.setSize(780, 975, false)
+        if (bounds.width !== 650 || bounds.height !== 850) {
+          this.overlayWindow.setSize(650, 850, false)
         }
       }
     })
@@ -234,9 +234,9 @@ export class WindowManager {
     })
 
     this.overlayWindow.webContents.on('did-finish-load', () => {
-      // Set zoom to 1.5x to compensate for DPI scaling from 150% to 100%
+      // Set zoom to 1.25x for balanced size on smaller screens
       if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
-        this.overlayWindow.webContents.setZoomFactor(1.5)
+        this.overlayWindow.webContents.setZoomFactor(1.25)
       }
       
       this.overlayWindow?.webContents.send(
@@ -245,10 +245,10 @@ export class WindowManager {
       )
     })
 
-    // Prevent zoom changes (keep at 1.5x)
+    // Prevent zoom changes (keep at 1.25x)
     this.overlayWindow.webContents.on('zoom-changed', () => {
       if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
-        this.overlayWindow.webContents.setZoomFactor(1.5)
+        this.overlayWindow.webContents.setZoomFactor(1.25)
       }
     })
 
