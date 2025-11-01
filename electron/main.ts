@@ -18,6 +18,11 @@ app.setName('Unstuck')
 // Ensure all child processes also use the app name
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.unstuck.app')
+  
+  // Force DPI awareness to prevent games from changing window scaling
+  // This must be set before app is ready
+  app.commandLine.appendSwitch('high-dpi-support', '1')
+  app.commandLine.appendSwitch('force-device-scale-factor', '1')
 }
 
 // V8 Memory Optimizations - Reduce memory usage at slight performance cost

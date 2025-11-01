@@ -150,7 +150,7 @@ export class AuthIPCHandlers {
     })
 
     // Window interaction handler
-    ipcMain.on('overlay-interaction', () => {
+    ipcMain.on('window-interaction', () => {
       this.windowManager.ensureOverlayOnTop()
 
       // Double-check after a short delay
@@ -182,7 +182,8 @@ export class AuthIPCHandlers {
             validIgnore,
             validOptions ?? { forward: true }
           )
-        } catch {
+        } catch (error) {
+          console.error('[IPC] set-ignore-mouse-events error:', error)
           // Silently ignore mouse event errors
         }
       }
@@ -256,9 +257,8 @@ export class AuthIPCHandlers {
     // Remove all IPC listeners
     ipcMain.removeAllListeners('auth-success')
     ipcMain.removeAllListeners('user-logout')
-    ipcMain.removeAllListeners('overlay-interaction')
+    ipcMain.removeAllListeners('window-interaction')
     ipcMain.removeAllListeners('ensure-always-on-top')
     ipcMain.removeAllListeners('set-ignore-mouse-events')
-    ipcMain.removeAllListeners('window-interaction')
   }
 }

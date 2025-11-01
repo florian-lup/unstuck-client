@@ -6,6 +6,7 @@ import { TextChat } from './components/text-chat'
 import { useAppLogic } from './hooks/use-app-logic'
 import './index.css'
 import './overlay.css'
+import { useEffect } from 'react'
 
 function App() {
   const {
@@ -56,6 +57,7 @@ function App() {
     handleStartNewConversation,
     handleConversationSelect,
   } = useAppLogic()
+
 
   return (
     <>

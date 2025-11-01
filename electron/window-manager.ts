@@ -57,8 +57,10 @@ export class WindowManager {
 
   createOverlayWindow(): BrowserWindow {
     const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize
-    const windowWidth = 520
-    const windowHeight = 650
+    // Increased by 50% to compensate for DPI scaling from 150% to 100%
+    // Original: 520x650, New: 780x975 (maintains same visual size)
+    const windowWidth = 780
+    const windowHeight = 975
 
     this.overlayWindow = new BrowserWindow({
       title: 'Unstuck',
@@ -70,6 +72,10 @@ export class WindowManager {
       skipTaskbar: true,
       width: windowWidth,
       height: windowHeight,
+      minWidth: windowWidth,
+      minHeight: windowHeight,
+      maxWidth: windowWidth,
+      maxHeight: windowHeight,
       x: Math.round((screenWidth - windowWidth) / 2),
       y: 20,
       webPreferences: {
@@ -85,6 +91,7 @@ export class WindowManager {
         offscreen: false,
         webgl: false,
         plugins: false,
+        zoomFactor: 1.5, // Set zoom to 1.5x to compensate for DPI scaling
       },
     })
 
@@ -194,6 +201,18 @@ export class WindowManager {
   private setupOverlayWindowEvents(): void {
     if (!this.overlayWindow) return
 
+    // Force correct size if window gets resized
+    this.overlayWindow.on('resize', () => {
+      if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+        const bounds = this.overlayWindow.getBounds()
+        
+        // Force window back to correct size if it changed
+        if (bounds.width !== 780 || bounds.height !== 975) {
+          this.overlayWindow.setSize(780, 975, false)
+        }
+      }
+    })
+
     // Maintain always-on-top behavior
     this.overlayWindow.on('blur', () => {
       if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
@@ -215,10 +234,22 @@ export class WindowManager {
     })
 
     this.overlayWindow.webContents.on('did-finish-load', () => {
+      // Set zoom to 1.5x to compensate for DPI scaling from 150% to 100%
+      if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+        this.overlayWindow.webContents.setZoomFactor(1.5)
+      }
+      
       this.overlayWindow?.webContents.send(
         'main-process-message',
         new Date().toLocaleString()
       )
+    })
+
+    // Prevent zoom changes (keep at 1.5x)
+    this.overlayWindow.webContents.on('zoom-changed', () => {
+      if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+        this.overlayWindow.webContents.setZoomFactor(1.5)
+      }
     })
 
     // Add context menu for DevTools in development
