@@ -3,43 +3,37 @@
  * Uses IPC to communicate with main process for Auth0 authentication
  */
 
-export interface AuthUser {
-  sub: string
-  email?: string
-  name?: string
-  nickname?: string
-  picture?: string
-  email_verified?: boolean
-  [key: string]: unknown
-}
+import type {
+  AuthUser,
+  AuthSession,
+  AuthTokens,
+  DeviceAuthorizationResponse,
+  SessionResponse,
+  AuthEventCallback,
+} from '@/types/auth-types'
+import { AuthEventManager } from './auth-events'
+import { AuthIPC } from './auth-ipc'
+import { AuthTokenManager } from './auth-token-manager'
 
-export interface AuthTokens {
-  access_token: string
-  refresh_token?: string
-  id_token?: string
-  expires_at: number
-  token_type: string
-  scope?: string
-}
-
-export interface AuthSession {
-  user: AuthUser
-  tokens: AuthTokens
-}
-
-export type AuthEvent = 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'ERROR'
+// Re-export types for convenience
+export type {
+  AuthUser,
+  AuthSession,
+  AuthTokens,
+  AuthEvent,
+  AuthEventCallback,
+  DeviceAuthorizationResponse,
+  SessionResponse,
+} from '@/types/auth-types'
 
 export class SecureAuthClient {
-  private listeners = new Set<
-    (event: AuthEvent, session: AuthSession | null, error?: string) => void
-  >()
+  private eventManager = new AuthEventManager()
+  private tokenManager = new AuthTokenManager()
+  private ipc = new AuthIPC()
+
   private user: AuthUser | null = null
   private session: AuthSession | null = null
-  private pendingSessionRequest: Promise<{
-    user: AuthUser | null
-    session: AuthSession | null
-    tokens: AuthTokens | null
-  }> | null = null
+  private pendingSessionRequest: Promise<SessionResponse> | null = null
 
   constructor() {
     this.setupIpcListeners()
@@ -48,47 +42,15 @@ export class SecureAuthClient {
   /**
    * Start Auth0 Device Authorization Flow
    */
-  async startAuthFlow(): Promise<{
-    device_code: string
-    user_code: string
-    verification_uri: string
-    expires_in: number
-  }> {
-    if (!window.electronAPI?.auth) {
-      throw new Error('Auth API not available')
-    }
-
-    const result = await window.electronAPI.auth.startAuthFlow()
-    if (!result.success) {
-      throw new Error(result.error ?? 'Failed to start authentication flow')
-    }
-
-    if (
-      !result.device_code ||
-      !result.user_code ||
-      !result.verification_uri ||
-      !result.expires_in
-    ) {
-      throw new Error('Invalid device authorization response')
-    }
-
-    return {
-      device_code: result.device_code,
-      user_code: result.user_code,
-      verification_uri: result.verification_uri,
-      expires_in: result.expires_in,
-    }
+  async startAuthFlow(): Promise<DeviceAuthorizationResponse> {
+    return this.ipc.startAuthFlow()
   }
 
   /**
    * Get current session with request deduplication
    * If multiple calls happen simultaneously, they share the same IPC request
    */
-  async getSession(): Promise<{
-    user: AuthUser | null
-    session: AuthSession | null
-    tokens: AuthTokens | null
-  }> {
+  async getSession(): Promise<SessionResponse> {
     // If there's already a pending request, return it
     // This prevents multiple simultaneous IPC calls (React Strict Mode protection)
     if (this.pendingSessionRequest) {
@@ -99,8 +61,7 @@ export class SecureAuthClient {
     this.pendingSessionRequest = this.fetchSession()
 
     try {
-      const result = await this.pendingSessionRequest
-      return result
+      return await this.pendingSessionRequest
     } finally {
       // Clear pending request after completion (success or error)
       this.pendingSessionRequest = null
@@ -110,107 +71,47 @@ export class SecureAuthClient {
   /**
    * Internal method to actually fetch the session from IPC
    */
-  private async fetchSession(): Promise<{
-    user: AuthUser | null
-    session: AuthSession | null
-    tokens: AuthTokens | null
-  }> {
-    if (!window.electronAPI?.auth) {
-      throw new Error('Auth API not available')
-    }
+  private async fetchSession(): Promise<SessionResponse> {
+    const result = await this.ipc.getSession()
 
-    const result = await window.electronAPI.auth.getSession()
-    if (!result.success) {
-      throw new Error(result.error ?? 'Failed to get session')
-    }
+    // Update local state
+    this.user = result.user
+    this.session = result.session
 
-    this.user =
-      result.user && typeof result.user === 'object' && 'sub' in result.user
-        ? (result.user as AuthUser)
-        : null
-    this.session =
-      result.session &&
-      typeof result.session === 'object' &&
-      'user' in result.session &&
-      'tokens' in result.session
-        ? (result.session as AuthSession)
-        : null
-
-    return {
-      user: this.user,
-      session: this.session,
-      tokens:
-        result.tokens &&
-        typeof result.tokens === 'object' &&
-        'access_token' in result.tokens
-          ? (result.tokens as AuthTokens)
-          : null,
-    }
+    return result
   }
 
   /**
    * Sign out user
    */
   async signOut(): Promise<void> {
-    if (!window.electronAPI?.auth) {
-      throw new Error('Auth API not available')
-    }
-
-    const result = await window.electronAPI.auth.signOut()
-    if (!result.success) {
-      throw new Error(result.error ?? 'Failed to sign out')
-    }
+    await this.ipc.signOut()
 
     this.user = null
     this.session = null
 
-    // Notify listeners
-    this.notifyListeners('SIGNED_OUT', null)
+    this.eventManager.notify('SIGNED_OUT', null)
   }
 
   /**
    * Check if secure storage is being used
    */
   async isSecureStorage(): Promise<boolean> {
-    if (!window.electronAPI?.auth) {
-      return false
-    }
-
-    return await window.electronAPI.auth.isSecureStorage()
+    return this.ipc.isSecureStorage()
   }
 
   /**
    * Cancel device authorization flow
    */
   async cancelDeviceFlow(): Promise<void> {
-    if (!window.electronAPI?.auth) {
-      throw new Error('Auth API not available')
-    }
-
-    const result = await window.electronAPI.auth.cancelDeviceFlow()
-    if (!result.success) {
-      throw new Error(result.error ?? 'Failed to cancel device flow')
-    }
+    return this.ipc.cancelDeviceFlow()
   }
 
   /**
    * Listen for auth state changes
    */
-  onAuthStateChange(
-    callback: (
-      event: AuthEvent,
-      session: AuthSession | null,
-      error?: string
-    ) => void
-  ) {
-    this.listeners.add(callback)
-
-    // Return unsubscribe function
-    return {
-      unsubscribe: () => {
-        this.listeners.delete(callback)
-      },
-    }
+  onAuthStateChange(callback: AuthEventCallback) {
+    return this.eventManager.addListener(callback)
   }
 
   /**
@@ -241,20 +142,10 @@ export class SecureAuthClient {
   async getValidAccessToken(): Promise<string | null> {
     // First try cached tokens
     const cachedTokens = this.getCurrentTokens()
-    if (cachedTokens?.access_token) {
-      // Check if token is still valid (simple expiration check)
-      // If we have an expires_at field, check it; otherwise assume it's valid for a short time
-      if (cachedTokens.expires_at) {
-        const now = Math.floor(Date.now() / 1000)
-        const bufferTime = 300 // 5 minute buffer
-        if (cachedTokens.expires_at > now + bufferTime) {
-          // Token is still valid
-          return cachedTokens.access_token
-        }
-      } else {
-        // No expiration info, assume valid for recent tokens
-        return cachedTokens.access_token
-      }
+    const validToken = this.tokenManager.getValidToken(cachedTokens)
+
+    if (validToken) {
+      return validToken
     }
 
     // Cached tokens are expired or missing, get fresh session
@@ -266,68 +157,35 @@ export class SecureAuthClient {
     }
   }
 
+  /**
+   * Setup IPC listeners for auth events
+   */
   private setupIpcListeners() {
-    if (!window.electronAPI?.auth) {
-      return
-    }
-
-    // Listen for successful authentication from main process
-    window.electronAPI.auth.onAuthSuccess((session: unknown) => {
-      if (
-        session &&
-        typeof session === 'object' &&
-        'user' in session &&
-        'tokens' in session
-      ) {
-        const authSession = session as AuthSession
-        this.user = authSession.user
-        this.session = authSession
-        this.notifyListeners('SIGNED_IN', authSession)
+    this.ipc.setupListeners(
+      // onSignIn
+      (session) => {
+        this.user = session.user
+        this.session = session
+        this.eventManager.notify('SIGNED_IN', session)
+      },
+      // onError
+      (error) => {
+        this.eventManager.notify('ERROR', null, error)
+      },
+      // onTokenRefresh
+      (session) => {
+        this.session = session
+        this.eventManager.notify('TOKEN_REFRESHED', session)
       }
-    })
-
-    // Listen for authentication errors
-    window.electronAPI.auth.onAuthError((error: string) => {
-      this.notifyListeners('ERROR', null, error)
-    })
-
-    // Listen for token refresh events
-    window.electronAPI.auth.onTokenRefresh?.((session: unknown) => {
-      if (
-        session &&
-        typeof session === 'object' &&
-        'user' in session &&
-        'tokens' in session
-      ) {
-        const authSession = session as AuthSession
-        this.session = authSession
-        this.notifyListeners('TOKEN_REFRESHED', authSession)
-      }
-    })
-  }
-
-  private notifyListeners(
-    event: AuthEvent,
-    session: AuthSession | null,
-    error?: string
-  ) {
-    this.listeners.forEach((listener) => {
-      try {
-        listener(event, session, error)
-      } catch {
-        // Auth listener error
-      }
-    })
+    )
   }
 
   /**
    * Cleanup listeners when component unmounts
    */
   cleanup() {
-    if (window.electronAPI?.auth) {
-      window.electronAPI.auth.removeAuthListeners()
-    }
-    this.listeners.clear()
+    this.ipc.removeListeners()
+    this.eventManager.clear()
     this.pendingSessionRequest = null
   }
 }
