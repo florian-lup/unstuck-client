@@ -3,30 +3,11 @@
  * Handles getting ephemeral tokens from the backend for OpenAI Realtime API
  */
 
-export interface VoiceSessionRequest {
-  game: string | null
-}
-
-export interface VoiceSessionResponse {
-  client_secret: string
-  ephemeral_key_id: string
-  model: string
-  expires_at: number
-  websocket_url: string
-  connection_instructions: {
-    url: string
-    auth_header: string
-    protocol: string
-    expires_in_seconds: string
-    note: string
-  }
-}
-
-export interface VoiceSessionError {
-  error: string
-  message: string
-  request_id: string
-}
+import type {
+  VoiceSessionRequest,
+  VoiceSessionResponse,
+  VoiceSessionError,
+} from '../../types/api-types'
 
 export interface EndSessionRequest {
   session_id: string

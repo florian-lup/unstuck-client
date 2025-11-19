@@ -15,21 +15,21 @@ export class WindowManager {
     private readonly viteDevServerUrl?: string
   ) {
     this.authWindowManager = new AuthWindowManager(
-      rendererDist,
-      vitePublic,
-      preloadPath,
-      viteDevServerUrl
+      this.rendererDist,
+      this.vitePublic,
+      this.preloadPath,
+      this.viteDevServerUrl
     )
 
     this.overlayWindowManager = new OverlayWindowManager(
-      rendererDist,
-      vitePublic,
-      preloadPath,
-      viteDevServerUrl
+      this.rendererDist,
+      this.vitePublic,
+      this.preloadPath,
+      this.viteDevServerUrl
     )
 
     this.trayManager = new TrayManager(
-      vitePublic,
+      this.vitePublic,
       () => this.overlayWindowManager.get(),
       () => { this.overlayWindowManager.ensureOnTop(); }
     )

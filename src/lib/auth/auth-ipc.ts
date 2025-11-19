@@ -26,7 +26,13 @@ export class AuthIPC {
   async startAuthFlow(): Promise<DeviceAuthorizationResponse> {
     this.ensureAuthAPI()
 
-    const result = await window.electronAPI.auth.startAuthFlow()
+    // After ensureAuthAPI(), we know electronAPI exists
+    const electronAPI = window.electronAPI
+    if (!electronAPI) {
+      throw new Error('Auth API not available')
+    }
+
+    const result = await electronAPI.auth.startAuthFlow()
     if (!result.success) {
       throw new Error(result.error ?? 'Failed to start authentication flow')
     }
@@ -54,7 +60,13 @@ export class AuthIPC {
   async getSession(): Promise<SessionResponse> {
     this.ensureAuthAPI()
 
-    const result = await window.electronAPI.auth.getSession()
+    // After ensureAuthAPI(), we know electronAPI exists
+    const electronAPI = window.electronAPI
+    if (!electronAPI) {
+      throw new Error('Auth API not available')
+    }
+
+    const result = await electronAPI.auth.getSession()
     if (!result.success) {
       throw new Error(result.error ?? 'Failed to get session')
     }
@@ -88,7 +100,13 @@ export class AuthIPC {
   async signOut(): Promise<void> {
     this.ensureAuthAPI()
 
-    const result = await window.electronAPI.auth.signOut()
+    // After ensureAuthAPI(), we know electronAPI exists
+    const electronAPI = window.electronAPI
+    if (!electronAPI) {
+      throw new Error('Auth API not available')
+    }
+
+    const result = await electronAPI.auth.signOut()
     if (!result.success) {
       throw new Error(result.error ?? 'Failed to sign out')
     }
@@ -111,7 +129,13 @@ export class AuthIPC {
   async cancelDeviceFlow(): Promise<void> {
     this.ensureAuthAPI()
 
-    const result = await window.electronAPI.auth.cancelDeviceFlow()
+    // After ensureAuthAPI(), we know electronAPI exists
+    const electronAPI = window.electronAPI
+    if (!electronAPI) {
+      throw new Error('Auth API not available')
+    }
+
+    const result = await electronAPI.auth.cancelDeviceFlow()
     if (!result.success) {
       throw new Error(result.error ?? 'Failed to cancel device flow')
     }
