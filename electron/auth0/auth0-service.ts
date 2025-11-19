@@ -6,6 +6,8 @@
  * - TokenManager: Handles token refresh, validation, rate limiting
  * - SecureStorage: Manages encrypted storage with fallback mechanisms
  * - DeviceFlowManager: Handles OAuth2 Device Authorization Flow
+ * - SessionManager: Handles session storage and restoration
+ * - UserManager: Handles user info fetching and database creation
  */
 import { Auth0Config } from '../../config/auth.config'
 import {
@@ -13,28 +15,13 @@ import {
   DeviceAuthorizationResult,
 } from './device-flow-manager'
 import { SecureStorage } from './secure-storage'
+import { SessionManager } from './session-manager'
 import { TokenManager, Auth0Tokens } from './token-manager'
+import { Auth0User, Auth0Session, Auth0Event } from './types'
+import { UserManager } from './user-manager'
 
-export interface Auth0User {
-  sub: string
-  email?: string
-  name?: string
-  nickname?: string
-  picture?: string
-  email_verified?: boolean
-  [key: string]: unknown
-}
-
-export interface Auth0Session {
-  user: Auth0User
-  tokens: Auth0Tokens
-}
-
-export type Auth0Event =
-  | 'SIGNED_IN'
-  | 'SIGNED_OUT'
-  | 'TOKEN_REFRESHED'
-  | 'ERROR'
+// Re-export types for backward compatibility
+export type { Auth0User, Auth0Session, Auth0Event }
 
 export class Auth0Service {
   private domain = ''
@@ -46,9 +33,10 @@ export class Auth0Service {
   private tokenManager!: TokenManager
   private secureStorage!: SecureStorage
   private deviceFlowManager!: DeviceFlowManager
+  private sessionManager!: SessionManager
+  private userManager!: UserManager
 
-  // Session state
-  private currentSession: Auth0Session | null = null
+  // Event listeners
   private listeners = new Set<
     (event: Auth0Event, session: Auth0Session | null, error?: string) => void
   >()
@@ -80,13 +68,23 @@ export class Auth0Service {
     this.scope = config.scope
 
     // Initialize specialized components
+    this.secureStorage = new SecureStorage()
+    await this.secureStorage.initialize()
+
     this.tokenManager = new TokenManager(
       config,
       this.domain,
       this.clientId,
       this.audience
     )
-    this.secureStorage = new SecureStorage()
+
+    this.sessionManager = new SessionManager(
+      this.secureStorage,
+      this.tokenManager
+    )
+
+    this.userManager = new UserManager(this.domain, this.secureStorage)
+
     this.deviceFlowManager = new DeviceFlowManager(
       config,
       this.domain,
@@ -94,9 +92,6 @@ export class Auth0Service {
       this.audience,
       this.scope
     )
-
-    // Initialize secure storage
-    await this.secureStorage.initialize()
 
     // Set up device flow event handling
     this.deviceFlowManager.setEventCallback((event, tokens, error) => {
@@ -129,8 +124,7 @@ export class Auth0Service {
    * Check if user is currently signed in with valid tokens
    */
   isSignedIn(): boolean {
-    if (!this.currentSession) return false
-    return !this.tokenManager.isTokenExpired(this.currentSession.tokens)
+    return this.sessionManager.isSignedIn()
   }
 
   /**
@@ -140,16 +134,20 @@ export class Auth0Service {
     user: Auth0User | null
     tokens: Auth0Tokens | null
   }> {
-    if (this.currentSession) {
+    const currentSession = this.sessionManager.getCurrentSession()
+
+    if (currentSession) {
       // Check if tokens are expired and refresh if needed
-      if (this.tokenManager.isTokenExpired(this.currentSession.tokens)) {
+      if (this.tokenManager.isTokenExpired(currentSession.tokens)) {
         try {
-          const refreshedTokens = await this.tokenManager.refreshTokens(
-            this.currentSession.tokens
-          )
-          this.currentSession.tokens = refreshedTokens
-          await this.storeSession(this.currentSession)
-          this.notifyListeners('TOKEN_REFRESHED', this.currentSession)
+          await this.sessionManager.refreshSessionTokens()
+          const refreshedSession = this.sessionManager.getCurrentSession()
+          this.notifyListeners('TOKEN_REFRESHED', refreshedSession)
+
+          return {
+            user: refreshedSession?.user ?? null,
+            tokens: refreshedSession?.tokens ?? null,
+          }
         } catch (error) {
           // Handle specific refresh errors that require re-authentication
           if (
@@ -165,8 +163,8 @@ export class Auth0Service {
       }
 
       return {
-        user: this.currentSession.user,
-        tokens: this.currentSession.tokens,
+        user: currentSession.user,
+        tokens: currentSession.tokens,
       }
     }
 
@@ -178,16 +176,17 @@ export class Auth0Service {
    */
   async signOut(): Promise<void> {
     try {
+      const currentSession = this.sessionManager.getCurrentSession()
+
       // Revoke tokens if available
-      if (this.currentSession?.tokens.refresh_token) {
+      if (currentSession?.tokens.refresh_token) {
         await this.tokenManager.revokeToken(
-          this.currentSession.tokens.refresh_token
+          currentSession.tokens.refresh_token
         )
       }
 
       // Clear stored session
-      await this.clearSession()
-      this.currentSession = null
+      await this.sessionManager.clearSession()
 
       // Cancel any ongoing device flow
       this.deviceFlowManager.cancelDeviceAuthorization()
@@ -196,8 +195,7 @@ export class Auth0Service {
       this.notifyListeners('SIGNED_OUT', null)
     } catch {
       // Still clear local session even if revocation fails
-      await this.clearSession()
-      this.currentSession = null
+      await this.sessionManager.clearSession()
       this.notifyListeners('SIGNED_OUT', null)
     }
   }
@@ -236,17 +234,16 @@ export class Auth0Service {
   private async handleDeviceFlowSuccess(tokens: Auth0Tokens): Promise<void> {
     try {
       // Get user info
-      const user = await this.getUserInfo(tokens.access_token)
+      const user = await this.userManager.getUserInfo(tokens.access_token)
 
       // Create session
       const session: Auth0Session = { user, tokens }
 
       // Store session securely
-      await this.storeSession(session)
-      this.currentSession = session
+      await this.sessionManager.storeSession(session)
 
       // Check if this is a new user and create in database if needed
-      await this.createUserInDatabase(user)
+      await this.userManager.createUserInDatabase(user)
 
       // Notify listeners
       this.notifyListeners('SIGNED_IN', session)
@@ -256,81 +253,17 @@ export class Auth0Service {
   }
 
   /**
-   * Get user information from Auth0
-   */
-  private async getUserInfo(accessToken: string): Promise<Auth0User> {
-    const userInfoEndpoint = `${this.domain}/userinfo`
-
-    const response = await fetch(userInfoEndpoint, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`User info request failed: ${response.statusText}`)
-    }
-
-    return (await response.json()) as Auth0User
-  }
-
-  /**
-   * Store session using secure storage
-   */
-  private async storeSession(session: Auth0Session): Promise<void> {
-    await this.secureStorage.setItem('auth0_session', JSON.stringify(session))
-  }
-
-  /**
    * Restore session from secure storage
    */
   private async restoreSession(): Promise<void> {
-    try {
-      const sessionData = await this.secureStorage.getItem('auth0_session')
-      if (sessionData) {
-        const restoredSession = JSON.parse(sessionData) as Auth0Session
+    const result = await this.sessionManager.restoreSession()
 
-        // Check if the restored tokens are still valid
-        if (this.tokenManager.isTokenExpired(restoredSession.tokens)) {
-          this.currentSession = restoredSession
+    if (result.session) {
+      // Ensure user is created in database
+      await this.userManager.createUserInDatabase(result.session.user)
 
-          try {
-            // Try to refresh the tokens
-            const refreshedTokens = await this.tokenManager.refreshTokens(
-              restoredSession.tokens
-            )
-            this.currentSession.tokens = refreshedTokens
-            await this.storeSession(this.currentSession)
-
-            // Ensure user is created in database
-            await this.createUserInDatabase(this.currentSession.user)
-
-            this.notifyListeners('SIGNED_IN', this.currentSession)
-          } catch {
-            await this.clearSession()
-            this.currentSession = null
-          }
-        } else {
-          // Tokens are still valid
-          this.currentSession = restoredSession
-
-          // Ensure user is created in database
-          await this.createUserInDatabase(this.currentSession.user)
-
-          this.notifyListeners('SIGNED_IN', this.currentSession)
-        }
-      }
-    } catch {
-      await this.clearSession()
-      this.currentSession = null
+      this.notifyListeners('SIGNED_IN', result.session)
     }
-  }
-
-  /**
-   * Clear session from secure storage
-   */
-  private async clearSession(): Promise<void> {
-    await this.secureStorage.removeItem('auth0_session')
   }
 
   /**
@@ -348,63 +281,6 @@ export class Auth0Service {
         // Silently ignore listener errors
       }
     })
-  }
-
-  /**
-   * Create user in backend database
-   * Called once per user after successful Auth0 authentication
-   */
-  private async createUserInDatabase(user: Auth0User): Promise<void> {
-    try {
-      // Check if we've already created this user
-      const createdUsersKey = 'created_users'
-      const createdUsersData = await this.secureStorage.getItem(createdUsersKey)
-      const createdUsers: Set<string> = createdUsersData
-        ? new Set(JSON.parse(createdUsersData) as string[])
-        : new Set()
-
-      // If user already created, skip
-      if (createdUsers.has(user.sub)) {
-        return
-      }
-
-      // Call the create-user endpoint
-      const response = await fetch(
-        'https://unstuck-backend-production-d9c1.up.railway.app/api/v1/auth/create-user',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            auth0_user_id: user.sub,
-            email: user.email,
-            username: user.name,
-          }),
-        }
-      )
-
-      if (response.ok) {
-        const data = (await response.json()) as {
-          success: boolean
-          user_id: string
-          is_new_user: boolean
-          message: string
-        }
-
-        if (data.success) {
-          // Mark user as created
-          createdUsers.add(user.sub)
-          await this.secureStorage.setItem(
-            createdUsersKey,
-            JSON.stringify(Array.from(createdUsers))
-          )
-        }
-      }
-      // Silently fail if user creation fails - authentication should still succeed
-    } catch {
-      // Silently fail - don't block authentication if user creation fails
-    }
   }
 }
 
