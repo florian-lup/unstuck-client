@@ -1,5 +1,5 @@
 import { Pencil } from 'lucide-react'
-import { Button } from './ui/button'
+import { Button } from '../ui/button'
 
 interface KeybindSettingProps {
   label: string

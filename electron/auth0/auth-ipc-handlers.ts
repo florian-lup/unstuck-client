@@ -1,6 +1,6 @@
 import { ipcMain, shell } from 'electron'
 import { Auth0Config } from '../../config/auth.config'
-import { WindowManager } from '../window-manager'
+import { WindowManager } from '../windows/window-manager'
 import { auth0Service } from './auth0-service'
 import { SecurityValidator } from './security-validators'
 

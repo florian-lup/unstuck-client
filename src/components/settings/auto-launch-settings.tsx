@@ -1,5 +1,5 @@
 import { Power } from 'lucide-react'
-import { Button } from './ui/button'
+import { Button } from '../ui/button'
 
 interface AutoLaunchSettingsProps {
   autoLaunchEnabled: boolean

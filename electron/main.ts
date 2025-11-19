@@ -8,7 +8,7 @@ import { auth0Service } from './auth0/auth0-service'
 import { AutoLaunchManager } from './auto-launch-manager'
 import { AutoUpdaterManager } from './auto-updater-manager'
 import { ShortcutsManager } from './shortcuts-manager'
-import { WindowManager } from './window-manager'
+import { WindowManager } from './windows/window-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 

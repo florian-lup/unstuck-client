@@ -1,5 +1,5 @@
 import { LogOut, User, ArrowUp, ArrowDown } from 'lucide-react'
-import { Button } from './ui/button'
+import { Button } from '../ui/button'
 
 interface UserProfileProps {
   user: { email?: string } | null

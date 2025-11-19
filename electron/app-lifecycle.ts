@@ -3,7 +3,7 @@ import { AuthIPCHandlers } from './auth0/auth-ipc-handlers'
 import { AutoLaunchManager } from './auto-launch-manager'
 import { AutoUpdaterManager } from './auto-updater-manager'
 import { ShortcutsManager } from './shortcuts-manager'
-import { WindowManager } from './window-manager'
+import { WindowManager } from './windows/window-manager'
 
 export class AppLifecycleManager {
   private authIPCHandlers?: AuthIPCHandlers

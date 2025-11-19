@@ -1,4 +1,4 @@
-import { Slider } from './ui/slider'
+import { Slider } from '../ui/slider'
 
 interface TransparencySettingsProps {
   currentTransparency: number

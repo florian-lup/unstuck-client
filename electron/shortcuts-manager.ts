@@ -1,5 +1,5 @@
 import { globalShortcut, app } from 'electron'
-import { WindowManager } from './window-manager'
+import { WindowManager } from './windows/window-manager'
 
 export class ShortcutsManager {
   private navigationShortcut: string | null = null
