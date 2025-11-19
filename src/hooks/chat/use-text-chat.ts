@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import type { Message } from '../components/text-chat'
+import type { Message } from '../../components/text-chat'
 
 interface UseTextChatProps {
   onClose?: () => void

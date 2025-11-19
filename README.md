@@ -186,20 +186,60 @@ unstuck-client/
 │   │   ├── navigation-bar.tsx
 │   │   ├── settings-menu.tsx
 │   │   └── ...
-│   ├── hooks/             # Custom React hooks
-│   ├── lib/               # Core libraries
-│   │   ├── realtime/      # WebRTC realtime modules
-│   │   │   ├── audio-manager.ts        # Audio capture/playback
-│   │   │   ├── data-channel-manager.ts # WebRTC messaging
-│   │   │   ├── message-handler.ts      # Event processing
-│   │   │   ├── webrtc-connection.ts    # Connection management
-│   │   │   └── index.ts                # Module exports
-│   │   ├── api-client.ts  # Backend API client
-│   │   ├── auth-client.ts # Auth0 client
-│   │   ├── games.ts       # Game library management
-│   │   └── ...
+│   ├── hooks/             # Custom React hooks (organized by domain)
+│   │   ├── app-logic/     # App state composition
+│   │   │   ├── use-app-logic.ts      # Main orchestrator
+│   │   │   ├── use-conversation.ts   # Message handling
+│   │   │   ├── use-keybinds.ts       # Keybind management
+│   │   │   ├── use-panels.ts         # Panel visibility
+│   │   │   ├── use-transparency.ts   # Transparency feature
+│   │   │   └── index.ts              # Barrel export
+│   │   ├── auth/          # Authentication hooks
+│   │   │   ├── use-auth.ts           # Auth state
+│   │   │   ├── use-auth-flow.ts      # Device auth flow
+│   │   │   └── index.ts
+│   │   ├── chat/          # Chat feature hooks
+│   │   │   ├── use-voice-chat.ts     # Voice chat
+│   │   │   ├── use-text-chat.ts      # Text chat
+│   │   │   └── index.ts
+│   │   ├── utilities/     # Generic utility hooks
+│   │   │   ├── use-click-through.ts
+│   │   │   ├── use-keyboard-toggle.ts
+│   │   │   ├── use-countdown-timer.ts
+│   │   │   ├── use-auto-launch.ts
+│   │   │   └── index.ts
+│   │   ├── use-subscription.ts       # Subscription management
+│   │   └── index.ts       # Top-level barrel export
+│   ├── lib/               # Core libraries (organized by domain)
+│   │   ├── api/           # API client and utilities
+│   │   │   ├── api-client.ts         # Backend API client
+│   │   │   ├── api-error-handler.ts  # Error handling
+│   │   │   ├── http-client.ts        # HTTP wrapper
+│   │   │   └── index.ts
+│   │   ├── auth/          # Authentication
+│   │   │   ├── auth-client.ts        # Auth0 client
+│   │   │   └── index.ts
+│   │   ├── chat/          # Chat services
+│   │   │   ├── chat-service.ts       # Text chat service
+│   │   │   ├── voice-session-service.ts  # Voice sessions
+│   │   │   ├── openai-realtime-webrtc-manager.ts  # WebRTC manager
+│   │   │   ├── realtime/  # WebRTC realtime modules
+│   │   │   │   ├── audio-manager.ts        # Audio capture/playback
+│   │   │   │   ├── data-channel-manager.ts # WebRTC messaging
+│   │   │   │   ├── message-handler.ts      # Event processing
+│   │   │   │   ├── webrtc-connection.ts    # Connection management
+│   │   │   │   └── index.ts
+│   │   │   └── index.ts
+│   │   ├── data/          # Game data and constants
+│   │   │   ├── games.ts              # Game library
+│   │   │   └── index.ts
+│   │   ├── utils.ts       # Standalone utilities
+│   │   └── index.ts       # Top-level barrel export
 │   ├── services/          # Service layer
+│   │   └── conversation-cache.ts
 │   └── types/             # TypeScript definitions
+│       ├── api-types.ts
+│       └── electron.d.ts
 ├── build/                 # Build configuration
 ├── config/                # Application configuration
 ├── public/                # Static assets

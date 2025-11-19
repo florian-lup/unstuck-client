@@ -3,14 +3,14 @@
  * Handles conversation IDs, message history, and API calls
  */
 
-import type { Message } from '../components/text-chat'
+import type { Message } from '../../components/text-chat'
 import {
   apiClient,
   type TextChatRequest,
   SubscriptionError,
-} from './api-client'
-import { secureAuth } from './auth-client'
-import type { Game } from './games'
+} from '../api'
+import { secureAuth } from '../auth'
+import type { Game } from '../data'
 
 export interface ConversationState {
   conversationId?: string

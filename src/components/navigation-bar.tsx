@@ -9,7 +9,7 @@ import {
   PhoneOff,
 } from 'lucide-react'
 import React from 'react'
-import { Game } from '../lib/games'
+import { Game } from '../lib/data'
 import { InteractiveArea } from './interactive-area'
 import { SelectGame } from './select-game'
 import { Button } from './ui/button'

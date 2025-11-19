@@ -18,7 +18,7 @@ import type {
   VoiceToolCallResponse,
   CreateUserRequest,
   CreateUserResponse,
-} from '../types/api-types'
+} from '../../types/api-types'
 import { validateResponse } from './api-error-handler'
 import { HttpClient } from './http-client'
 
@@ -41,9 +41,9 @@ export type {
   ApiErrorResponse,
   VoiceSessionError,
   WebSearchResult,
-} from '../types/api-types'
+} from '../../types/api-types'
 
-export { SubscriptionError } from '../types/api-types'
+export { SubscriptionError } from '../../types/api-types'
 
 /**
  * API Client for Unstuck Backend

@@ -1,9 +1,8 @@
 import { useEffect } from 'react'
 import unstuckLogo from '../../public/unstuck-logo.svg'
-import { useAuth } from '../hooks/use-auth'
-import { useAuthFlow } from '../hooks/use-auth-flow'
-import { useCountdownTimer } from '../hooks/use-countdown-timer'
-import { AuthUser } from '../lib/auth-client'
+import { useAuth, useAuthFlow } from '../hooks/auth'
+import { useCountdownTimer } from '../hooks/utilities'
+import { AuthUser } from '../lib/auth'
 import { formatTime } from '../lib/utils'
 import { Button } from './ui/button'
 

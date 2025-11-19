@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiClient, SubscriptionStatusResponse } from '../lib/api-client'
-import { secureAuth } from '../lib/auth-client'
+import { apiClient, SubscriptionStatusResponse } from '../lib/api'
+import { secureAuth } from '../lib/auth'
 
 interface UseSubscriptionReturn {
   subscriptionStatus: SubscriptionStatusResponse | null

@@ -3,7 +3,7 @@
  * Handles parsing and routing of messages from OpenAI Realtime API
  */
 
-import { apiClient } from '../api-client'
+import { apiClient } from '../../api'
 
 export interface MessageHandlerConfig {
   onTranscriptUpdate?: (transcript: string, isFinal: boolean) => void

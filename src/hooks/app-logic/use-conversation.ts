@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react'
 import { type Conversation } from '../../components/conversation-history'
 import { type Message } from '../../components/text-chat'
-import { apiClient } from '../../lib/api-client'
-import { secureAuth } from '../../lib/auth-client'
-import { chatService } from '../../lib/chat-service'
-import { type Game } from '../../lib/games'
+import { apiClient } from '../../lib/api'
+import { secureAuth } from '../../lib/auth'
+import { chatService } from '../../lib/chat'
+import { type Game } from '../../lib/data'
 import { conversationCache } from '../../services/conversation-cache'
 
 export function useConversation() {

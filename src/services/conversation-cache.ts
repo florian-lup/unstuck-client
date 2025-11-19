@@ -2,7 +2,7 @@ import { Conversation } from '../components/conversation-history'
 import {
   ConversationHistoryResponse,
   ConversationsResponse,
-} from '../lib/api-client'
+} from '../lib/api'
 
 export interface CachedConversationList {
   data: ConversationsResponse

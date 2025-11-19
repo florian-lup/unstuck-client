@@ -6,7 +6,7 @@ import {
   getGameDisplayNameWithVersion,
   addCustomGame,
   deleteGame,
-} from '../lib/games'
+} from '../lib/data'
 import { Button } from './ui/button'
 import { Dropdown } from './ui/dropdown'
 import { Input } from './ui/input'

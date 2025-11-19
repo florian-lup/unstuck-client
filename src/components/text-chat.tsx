@@ -8,7 +8,7 @@ import {
   Scroll,
   ClipboardList,
 } from 'lucide-react'
-import { useTextChat } from '../hooks/use-text-chat'
+import { useTextChat } from '../hooks/chat'
 import { MarkdownContent } from '../utils/markdown-content'
 import { InteractiveArea } from './interactive-area'
 import { Button } from './ui/button'

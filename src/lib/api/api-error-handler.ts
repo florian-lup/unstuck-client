@@ -3,7 +3,7 @@
  * Centralized error handling logic for API responses
  */
 
-import { ApiErrorResponse, SubscriptionError } from '../types/api-types'
+import { ApiErrorResponse, SubscriptionError } from '../../types/api-types'
 
 /**
  * Handle API error responses with consistent error messages
