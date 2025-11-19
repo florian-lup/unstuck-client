@@ -9,7 +9,10 @@
  * - Native browser support for audio streaming
  */
 
-import { apiClient } from './api-client'
+import { AudioManager } from './realtime/audio-manager'
+import { DataChannelManager } from './realtime/data-channel-manager'
+import { MessageHandler } from './realtime/message-handler'
+import { WebRTCConnection } from './realtime/webrtc-connection'
 
 export type ConnectionState =
   | 'disconnected'
@@ -29,19 +32,47 @@ export interface RealtimeConfig {
 }
 
 export class OpenAIRealtimeWebRTCManager {
-  private peerConnection: RTCPeerConnection | null = null
-  private dataChannel: RTCDataChannel | null = null
   private connectionState: ConnectionState = 'disconnected'
   private config: RealtimeConfig
   private reconnectAttempts = 0
   private maxReconnectAttempts = 3
-  private mediaStream: MediaStream | null = null
-  private audioContext: AudioContext | null = null
-  private remoteAudioElement: HTMLAudioElement | null = null
   private intentionalDisconnect = false
+
+  // Component managers
+  private webrtcConnection: WebRTCConnection
+  private audioManager: AudioManager
+  private dataChannelManager: DataChannelManager
+  private messageHandler: MessageHandler
 
   constructor(config: RealtimeConfig) {
     this.config = config
+
+    // Initialize component managers
+    this.webrtcConnection = new WebRTCConnection({
+      ephemeralKey: config.ephemeralKey,
+      onTrack: (event) => { this.audioManager.handleRemoteTrack(event); },
+      onError: (error) => { this.handleConnectionError(error); },
+    })
+
+    this.audioManager = new AudioManager()
+
+    this.dataChannelManager = new DataChannelManager({
+      onOpen: () => { this.handleDataChannelOpen(); },
+      onMessage: (data) => void this.messageHandler.handleMessage(data),
+      onError: (error) => this.config.onError?.(error),
+      onClose: () => { this.handleDataChannelClose(); },
+    })
+
+    this.messageHandler = new MessageHandler({
+      onTranscriptUpdate: config.onTranscriptUpdate,
+      onAudioResponse: config.onAudioResponse,
+      onError: config.onError,
+      ephemeralKeyId: config.ephemeralKeyId,
+      accessToken: config.accessToken,
+      onFunctionResult: (callId, output) =>
+        { this.dataChannelManager.sendFunctionResult(callId, output); },
+      onRequestResponse: () => { this.dataChannelManager.requestResponse(); },
+    })
   }
 
   /**
@@ -60,73 +91,29 @@ export class OpenAIRealtimeWebRTCManager {
     this.setConnectionState('connecting')
 
     try {
-      // Create RTCPeerConnection with STUN servers
-      this.peerConnection = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ],
-      })
+      // Create peer connection
+      const peerConnection = this.webrtcConnection.create()
 
-      // Set up peer connection event handlers
-      this.peerConnection.oniceconnectionstatechange =
-        this.handleICEStateChange.bind(this)
-      this.peerConnection.onconnectionstatechange =
-        this.handleConnectionStateChange.bind(this)
-      this.peerConnection.ontrack = this.handleTrack.bind(this)
+      // Create data channel
+      this.dataChannelManager.create(peerConnection)
 
-      // Create data channel for sending/receiving control messages and text
-      this.dataChannel = this.peerConnection.createDataChannel('oai-events', {
-        ordered: true,
-      })
+      // Setup audio track
+      await this.audioManager.setupAudioTrack(peerConnection)
 
-      this.dataChannel.onopen = this.handleDataChannelOpen.bind(this)
-      this.dataChannel.onmessage = this.handleDataChannelMessage.bind(this)
-      this.dataChannel.onerror = this.handleDataChannelError.bind(this)
-      this.dataChannel.onclose = this.handleDataChannelClose.bind(this)
-
-      // Request microphone access and add audio track
-      await this.setupAudioTrack()
-
-      // Create and send SDP offer
-      const offer = await this.peerConnection.createOffer()
-      await this.peerConnection.setLocalDescription(offer)
+      // Create and set local SDP offer
+      await this.webrtcConnection.createOffer()
 
       // Wait for ICE gathering to complete
-      await this.waitForICEGathering()
+      await this.webrtcConnection.waitForICEGathering()
 
-      // Send offer to OpenAI and get answer
-      const localDesc = this.peerConnection.localDescription
-      if (!localDesc) {
-        throw new Error('Failed to create local description')
-      }
-      const answer = await this.exchangeSDP(localDesc)
+      // Exchange SDP with OpenAI
+      const answer = await this.webrtcConnection.exchangeSDP()
 
-      // Set remote description with the answer from OpenAI
-      await this.peerConnection.setRemoteDescription(answer)
+      // Set remote description
+      await this.webrtcConnection.setRemoteDescription(answer)
 
       // Wait for data channel to open
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Data channel connection timeout'))
-        }, 10000)
-
-        if (this.dataChannel) {
-          if (this.dataChannel.readyState === 'open') {
-            clearTimeout(timeout)
-            resolve()
-          } else {
-            this.dataChannel.addEventListener('open', () => {
-              clearTimeout(timeout)
-              resolve()
-            })
-            this.dataChannel.addEventListener('error', () => {
-              clearTimeout(timeout)
-              reject(new Error('Data channel connection failed'))
-            })
-          }
-        }
-      })
+      await this.dataChannelManager.waitForOpen()
     } catch (error) {
       this.setConnectionState('error')
       const errorMessage =
@@ -137,162 +124,16 @@ export class OpenAIRealtimeWebRTCManager {
   }
 
   /**
-   * Set up audio track for the peer connection
-   */
-  private async setupAudioTrack(): Promise<void> {
-    try {
-      // Request microphone access
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 24000,
-        },
-      })
-
-      // Add audio track to peer connection
-      const audioTrack = this.mediaStream.getAudioTracks()[0]
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (audioTrack && this.peerConnection) {
-        this.peerConnection.addTrack(audioTrack, this.mediaStream)
-      }
-    } catch {
-      throw new Error('Microphone access denied')
-    }
-  }
-
-  /**
-   * Wait for ICE gathering to complete
-   */
-  private waitForICEGathering(): Promise<void> {
-    return new Promise((resolve) => {
-      if (!this.peerConnection) {
-        resolve()
-        return
-      }
-
-      if (this.peerConnection.iceGatheringState === 'complete') {
-        resolve()
-        return
-      }
-
-      const checkState = () => {
-        if (this.peerConnection?.iceGatheringState === 'complete') {
-          this.peerConnection.removeEventListener(
-            'icegatheringstatechange',
-            checkState
-          )
-          resolve()
-        }
-      }
-
-      this.peerConnection.addEventListener(
-        'icegatheringstatechange',
-        checkState
-      )
-
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        if (this.peerConnection) {
-          this.peerConnection.removeEventListener(
-            'icegatheringstatechange',
-            checkState
-          )
-        }
-        resolve()
-      }, 5000)
-    })
-  }
-
-  /**
-   * Exchange SDP with OpenAI API
-   * Uses the GA endpoint: /v1/realtime/calls
-   */
-  private async exchangeSDP(
-    offer: RTCSessionDescriptionInit
-  ): Promise<RTCSessionDescriptionInit> {
-    try {
-      const response = await fetch('https://api.openai.com/v1/realtime/calls', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.config.ephemeralKey}`,
-          'Content-Type': 'application/sdp',
-        },
-        body: offer.sdp,
-      })
-
-      if (!response.ok) {
-        let errorText = await response.text()
-
-        // Try to parse as JSON for better error message
-        try {
-          const errorJson = JSON.parse(errorText) as {
-            error?: { message?: string }
-          }
-          if (errorJson.error?.message) {
-            errorText = errorJson.error.message
-          }
-        } catch {
-          // Not JSON, use text as-is
-        }
-
-        if (response.status === 400) {
-          throw new Error(
-            `WebRTC SDP exchange failed. Your backend may need to be updated to use the OpenAI GA API ` +
-              `(/v1/realtime/client_secrets endpoint) instead of the beta API. Error: ${errorText}`
-          )
-        }
-
-        throw new Error(
-          `SDP exchange failed (${response.status}): ${errorText}`
-        )
-      }
-
-      const answerSDP = await response.text()
-
-      return {
-        type: 'answer',
-        sdp: answerSDP,
-      }
-    } catch {
-      throw new Error('Failed to establish WebRTC connection with OpenAI')
-    }
-  }
-
-  /**
    * Disconnect from WebRTC
    */
   disconnect(): void {
     // Mark as intentional disconnect to prevent auto-reconnect
     this.intentionalDisconnect = true
 
-    // Close data channel
-    if (this.dataChannel) {
-      this.dataChannel.close()
-      this.dataChannel = null
-    }
-
-    // Close peer connection
-    if (this.peerConnection) {
-      this.peerConnection.close()
-      this.peerConnection = null
-    }
-
-    // Stop media stream
-    this.stopAudioCapture()
-
-    // Clean up audio playback
-    if (this.remoteAudioElement) {
-      this.remoteAudioElement.pause()
-      this.remoteAudioElement.srcObject = null
-      this.remoteAudioElement = null
-    }
-
-    if (this.audioContext) {
-      void this.audioContext.close()
-      this.audioContext = null
-    }
+    // Close all connections
+    this.dataChannelManager.close()
+    this.webrtcConnection.close()
+    this.audioManager.cleanup()
 
     this.setConnectionState('disconnected')
   }
@@ -310,52 +151,21 @@ export class OpenAIRealtimeWebRTCManager {
    * Stop capturing audio
    */
   stopAudioCapture(): void {
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach((track) => {
-        track.stop()
-      })
-      this.mediaStream = null
-    }
+    this.audioManager.stopAudioCapture()
   }
 
   /**
    * Send a text message through the data channel
    */
   sendTextMessage(text: string): void {
-    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      throw new Error('Data channel not open')
-    }
-
-    const message = {
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'user',
-        content: [
-          {
-            type: 'input_text',
-            text,
-          },
-        ],
-      },
-    }
-
-    this.dataChannel.send(JSON.stringify(message))
+    this.dataChannelManager.sendTextMessage(text)
   }
 
   /**
    * Cancel the current AI response (for interruptions)
    */
   cancelResponse(): void {
-    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      return
-    }
-
-    this.dataChannel.send(
-      JSON.stringify({
-        type: 'response.cancel',
-      })
-    )
+    this.dataChannelManager.cancelResponse()
   }
 
   /**
@@ -368,58 +178,6 @@ export class OpenAIRealtimeWebRTCManager {
   }): void {
     // Interruption is handled by OpenAI's server-side Voice Activity Detection (VAD)
     // This method exists for API compatibility but doesn't modify local state
-  }
-
-  /**
-   * Handle ICE connection state change
-   */
-  private handleICEStateChange(): void {
-    if (!this.peerConnection) return
-
-    switch (this.peerConnection.iceConnectionState) {
-      case 'failed':
-      case 'disconnected':
-        this.handleConnectionError(new Error('ICE connection failed'))
-        break
-      case 'closed':
-        this.setConnectionState('disconnected')
-        break
-    }
-  }
-
-  /**
-   * Handle peer connection state change
-   */
-  private handleConnectionStateChange(): void {
-    if (!this.peerConnection) return
-
-    switch (this.peerConnection.connectionState) {
-      case 'connected':
-        break
-      case 'failed':
-        this.handleConnectionError(new Error('Peer connection failed'))
-        break
-      case 'disconnected':
-      case 'closed':
-        this.setConnectionState('disconnected')
-        break
-    }
-  }
-
-  /**
-   * Handle incoming media track (audio from OpenAI)
-   */
-  private handleTrack(event: RTCTrackEvent): void {
-    if (event.track.kind === 'audio') {
-      // Create audio element to play remote audio
-      if (!this.remoteAudioElement) {
-        this.remoteAudioElement = new Audio()
-        this.remoteAudioElement.autoplay = true
-      }
-
-      const stream = new MediaStream([event.track])
-      this.remoteAudioElement.srcObject = stream
-    }
   }
 
   /**
@@ -436,201 +194,6 @@ export class OpenAIRealtimeWebRTCManager {
     // - Turn detection (server VAD)
     // - Transcription settings
     // Client can send session.update later if runtime changes are needed
-  }
-
-  /**
-   * Handle data channel message
-   */
-  private handleDataChannelMessage(event: MessageEvent): void {
-    try {
-      const message = JSON.parse(event.data as string) as {
-        type: string
-        transcript?: string
-        delta?: string
-        error?: { message?: string; type?: string }
-        call_id?: string
-        name?: string
-        arguments?: string
-      }
-
-      // Handle different message types
-      switch (message.type) {
-        case 'session.created':
-          break
-        case 'session.updated':
-          break
-
-        case 'input_audio_buffer.speech_started':
-          // User started speaking
-          break
-
-        case 'input_audio_buffer.speech_stopped':
-          // User stopped speaking
-          break
-
-        case 'conversation.item.input_audio_transcription.completed':
-          // User's speech was transcribed
-          if (message.transcript) {
-            this.config.onTranscriptUpdate?.(message.transcript, true)
-          }
-          break
-
-        case 'conversation.item.input_audio_transcription.delta':
-          // Partial transcript of user's speech
-          if (message.delta) {
-            this.config.onTranscriptUpdate?.(message.delta, false)
-          }
-          break
-
-        case 'response.output_audio.delta':
-          // AI audio response chunk (GA API event name)
-          if (message.delta) {
-            const audioData = this.base64ToArrayBuffer(message.delta)
-            this.config.onAudioResponse?.(audioData)
-          }
-          break
-
-        case 'response.audio.done':
-          // AI finished speaking
-          break
-
-        case 'response.output_audio_transcript.delta':
-          // AI's speech transcript (partial) - GA API event name
-          if (message.delta) {
-            this.config.onTranscriptUpdate?.(message.delta, false)
-          }
-          break
-
-        case 'response.output_audio_transcript.done':
-          // AI's speech transcript (complete) - GA API event name
-          if (message.transcript) {
-            this.config.onTranscriptUpdate?.(message.transcript, true)
-          }
-          break
-
-        case 'response.function_call_arguments.done':
-          // Function call request from OpenAI
-          if (message.call_id && message.name && message.arguments) {
-            void this.handleFunctionCall(
-              message.call_id,
-              message.name,
-              message.arguments
-            )
-          }
-          break
-
-        case 'response.done':
-          break
-
-        case 'response.cancelled':
-          break
-
-        case 'error': {
-          const errorMsg =
-            message.error?.message ?? message.error?.type ?? 'Unknown error'
-          this.config.onError?.(new Error(errorMsg))
-          break
-        }
-
-        default:
-          break
-      }
-    } catch {
-      // Error parsing message
-    }
-  }
-
-  /**
-   * Handle function call from OpenAI
-   */
-  private async handleFunctionCall(
-    callId: string,
-    functionName: string,
-    argumentsStr: string
-  ): Promise<void> {
-    try {
-      // Parse function arguments
-      let functionArgs: Record<string, unknown>
-      try {
-        functionArgs = JSON.parse(argumentsStr) as Record<string, unknown>
-      } catch (parseError) {
-        throw new Error(
-          `Invalid function arguments JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`
-        )
-      }
-
-      // Call the backend tool endpoint with session ID for security validation
-      const response = await apiClient.voiceToolCall(
-        {
-          tool_name: functionName,
-          arguments: functionArgs,
-          session_id: this.config.ephemeralKeyId,
-        },
-        this.config.accessToken
-      )
-
-      // Determine the output to send back to OpenAI
-      const output = response.error
-        ? JSON.stringify({ error: response.error })
-        : JSON.stringify(response.result)
-
-      // Send the function result back to OpenAI
-      this.sendFunctionResult(callId, output)
-
-      // Request OpenAI to continue with the response
-      this.requestResponse()
-    } catch (error) {
-      // Send error back to OpenAI
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error occurred'
-
-      this.sendFunctionResult(callId, JSON.stringify({ error: errorMessage }))
-
-      // Let OpenAI naturally continue the conversation after receiving the error result
-      // (removed requestResponse() to avoid "active response in progress" race condition)
-    }
-  }
-
-  /**
-   * Send function result back to OpenAI
-   */
-  private sendFunctionResult(callId: string, output: string): void {
-    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      return
-    }
-
-    const message = {
-      type: 'conversation.item.create',
-      item: {
-        type: 'function_call_output',
-        call_id: callId,
-        output: output,
-      },
-    }
-
-    this.dataChannel.send(JSON.stringify(message))
-  }
-
-  /**
-   * Request OpenAI to create a response
-   */
-  private requestResponse(): void {
-    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      return
-    }
-
-    this.dataChannel.send(
-      JSON.stringify({
-        type: 'response.create',
-      })
-    )
-  }
-
-  /**
-   * Handle data channel error
-   */
-  private handleDataChannelError(): void {
-    this.config.onError?.(new Error('Data channel error'))
   }
 
   /**
@@ -674,19 +237,5 @@ export class OpenAIRealtimeWebRTCManager {
    */
   getConnectionState(): ConnectionState {
     return this.connectionState
-  }
-
-  /**
-   * Convert base64 string to ArrayBuffer
-   */
-  private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binaryString = atob(base64)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      const charCode = binaryString.charCodeAt(i)
-      // eslint-disable-next-line security/detect-object-injection
-      bytes[i] = charCode
-    }
-    return bytes.buffer
   }
 }

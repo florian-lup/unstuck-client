@@ -188,6 +188,12 @@ unstuck-client/
 │   │   └── ...
 │   ├── hooks/             # Custom React hooks
 │   ├── lib/               # Core libraries
+│   │   ├── realtime/      # WebRTC realtime modules
+│   │   │   ├── audio-manager.ts        # Audio capture/playback
+│   │   │   ├── data-channel-manager.ts # WebRTC messaging
+│   │   │   ├── message-handler.ts      # Event processing
+│   │   │   ├── webrtc-connection.ts    # Connection management
+│   │   │   └── index.ts                # Module exports
 │   │   ├── api-client.ts  # Backend API client
 │   │   ├── auth-client.ts # Auth0 client
 │   │   ├── games.ts       # Game library management
