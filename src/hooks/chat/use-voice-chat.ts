@@ -6,6 +6,7 @@ import {
   voiceSessionService,
 } from '../../lib/chat'
 import type { Game } from '../../lib/data'
+import { useAudioPlayback } from './use-audio-playback'
 
 export interface VoiceChatState {
   isConnected: boolean
@@ -32,10 +33,8 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
   })
 
   const realtimeManagerRef = useRef<OpenAIRealtimeWebRTCManager | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const audioQueueRef = useRef<ArrayBuffer[]>([])
-  const isPlayingRef = useRef(false)
   const sessionIdRef = useRef<string | null>(null)
+  const { handleAudioResponse, cleanup: cleanupAudio } = useAudioPlayback()
 
   /**
    * Update connection state
@@ -62,64 +61,6 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       transcript: isFinal ? text : `${prev.transcript} ${text}`,
     }))
   }, [])
-
-  /**
-   * Play audio from queue
-   */
-  const playAudioQueue = useCallback(async () => {
-    if (audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false
-      return
-    }
-
-    isPlayingRef.current = true
-
-    // Initialize audio context if needed
-    audioContextRef.current ??= new window.AudioContext({
-      sampleRate: 24000,
-    })
-
-    try {
-      const audioData = audioQueueRef.current.shift()
-      if (!audioData) return
-
-      // Convert PCM16 to AudioBuffer
-      const audioBuffer = await convertPCM16ToAudioBuffer(
-        audioData,
-        audioContextRef.current
-      )
-
-      // Create source and play
-      const source = audioContextRef.current.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(audioContextRef.current.destination)
-
-      source.onended = () => {
-        // Play next in queue
-        void playAudioQueue()
-      }
-
-      source.start()
-    } catch {
-      isPlayingRef.current = false
-    }
-  }, [])
-
-  /**
-   * Handle audio response from OpenAI
-   */
-  const handleAudioResponse = useCallback(
-    (audioData: ArrayBuffer) => {
-      // Add to queue
-      audioQueueRef.current.push(audioData)
-
-      // Start playing if not already playing
-      if (!isPlayingRef.current) {
-        void playAudioQueue()
-      }
-    },
-    [playAudioQueue]
-  )
 
   /**
    * Handle errors
@@ -234,15 +175,8 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       realtimeManagerRef.current = null
     }
 
-    // Clear audio queue
-    audioQueueRef.current = []
-    isPlayingRef.current = false
-
-    // Close audio context
-    if (audioContextRef.current) {
-      void audioContextRef.current.close()
-      audioContextRef.current = null
-    }
+    // Cleanup audio playback
+    cleanupAudio()
 
     setState({
       isConnected: false,
@@ -252,7 +186,7 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       error: null,
       connectionState: 'disconnected',
     })
-  }, [])
+  }, [cleanupAudio])
 
   /**
    * Toggle mute
@@ -342,11 +276,10 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
       if (realtimeManagerRef.current) {
         realtimeManagerRef.current.disconnect()
       }
-      if (audioContextRef.current) {
-        void audioContextRef.current.close()
-      }
+      
+      cleanupAudio()
     }
-  }, [])
+  }, [cleanupAudio])
 
   return {
     ...state,
@@ -357,44 +290,4 @@ export function useVoiceChat({ selectedGame, onError }: UseVoiceChatOptions) {
     clearTranscript,
     setInterruptionConfig,
   }
-}
-
-/**
- * Convert PCM16 buffer to AudioBuffer
- */
-function convertPCM16ToAudioBuffer(
-  pcm16Buffer: ArrayBuffer,
-  audioContext: AudioContext
-): Promise<AudioBuffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      // PCM16 is 16-bit signed integer
-      const int16Array = new Int16Array(pcm16Buffer)
-
-      // Create AudioBuffer
-      const audioBuffer = audioContext.createBuffer(
-        1, // mono
-        int16Array.length,
-        24000 // sample rate
-      )
-
-      // Convert int16 to float32 and copy to AudioBuffer
-      const channelData = audioBuffer.getChannelData(0)
-      for (let i = 0; i < int16Array.length; i++) {
-        // eslint-disable-next-line security/detect-object-injection
-        const sample = int16Array[i]
-        // Convert from int16 (-32768 to 32767) to float32 (-1.0 to 1.0)
-        // eslint-disable-next-line security/detect-object-injection
-        channelData[i] = sample / (sample < 0 ? 32768 : 32767)
-      }
-
-      resolve(audioBuffer)
-    } catch (error) {
-      reject(
-        error instanceof Error
-          ? error
-          : new Error('Failed to convert PCM16 to AudioBuffer')
-      )
-    }
-  })
 }
