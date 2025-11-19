@@ -1,7 +1,7 @@
 import { AppInfo } from './components/app-info'
 import { ConversationHistory } from './components/conversation-history'
 import { NavigationBar } from './components/navigation-bar'
-import { SettingsMenu } from './components/settings-menu'
+import { SettingsMenu } from './components/settings/settings-menu'
 import { TextChat } from './components/text-chat'
 import { useAppLogic } from './hooks/app-logic'
 import './index.css'
